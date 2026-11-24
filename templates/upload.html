@@ -1,0 +1,140 @@
+{% extends "base.html" %} {% block content %}
+<div class="card shadow-sm mb-4">
+  <div class="card-header bg-white fw-bold">
+    1. Upload Recorded CCTV Footage
+  </div>
+  <div class="card-body">
+    <form
+      method="POST"
+      enctype="multipart/form-data"
+      class="row g-3 align-items-center"
+    >
+      <div class="col-md-6">
+        <input
+          class="form-control"
+          type="file"
+          name="video"
+          accept=".mp4,.avi,.mov"
+          required
+        />
+      </div>
+      <div class="col-md-3">
+        <div class="form-check">
+          <input
+            class="form-check-input"
+            type="checkbox"
+            name="force_enhance"
+            id="forceEnhance"
+            {%
+            if
+            force_enhance
+            %}checked{%
+            endif
+            %}
+          />
+          <label class="form-check-label" for="forceEnhance"
+            >Force Night Enhancement</label
+          >
+        </div>
+      </div>
+      <div class="col-md-3 d-grid">
+        <button type="submit" class="btn btn-primary">Analyze & Monitor</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% if summary %}
+<div class="row mb-4">
+  <div class="col-md-7">
+    <div class="card shadow-sm h-100">
+      <div class="card-header bg-white fw-bold">2. Processed CCTV Output</div>
+      <div class="card-body text-center">
+        <video class="w-100 rounded" controls>
+          <source
+            src="{{ url_for('serve_processed_video', filename=summary.processed_video) }}"
+            type="video/mp4"
+          />
+        </video>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-5">
+    <div class="card shadow-sm h-100">
+      <div class="card-header bg-white fw-bold">
+        3. Tracked Visitors & Dwell Time
+      </div>
+      <div class="card-body table-responsive">
+        <table class="table table-sm table-bordered align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>ID</th>
+              <th>Identity</th>
+              <th>Window</th>
+              <th>Dwell</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for track in summary.visitor_tracks %}
+            <tr>
+              <td><strong>#{{ track.track_id }}</strong></td>
+              <td>
+                {% if track.name == 'Unknown' %}
+                <span class="badge bg-danger">Unknown</span>
+                {% else %}
+                <span class="badge bg-success">{{ track.name }}</span>
+                {% endif %}
+              </td>
+              <td>{{ track.first_seen }}s &ndash; {{ track.last_seen }}s</td>
+              <td><strong>{{ track.dwell_time }}s</strong></td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="4" class="text-center text-muted">
+                No visitors detected.
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card shadow-sm">
+  <div class="card-header bg-white fw-bold">
+    4. Triggered Security Events ({{ summary.security_events|length }})
+  </div>
+  <div class="card-body">
+    <div class="row g-3">
+      {% for ev in summary.security_events %}
+      <div class="col-md-4">
+        <div class="card h-100 border-warning">
+          <img
+            src="{{ url_for('serve_snapshot', filename=ev.snapshot_filename) }}"
+            class="card-img-top"
+            alt="Snapshot"
+          />
+          <div class="card-body">
+            <div class="d-flex justify-content-between mb-1">
+              <span class="fw-bold">{{ ev.event_type }}</span>
+              <span
+                class="badge {% if ev.telegram_sent %}bg-success{% else %}bg-secondary{% endif %}"
+              >
+                Telegram: {{ "Sent" if ev.telegram_sent else "Off" }}
+              </span>
+            </div>
+            <p class="small text-muted mb-0">{{ ev.description }}</p>
+          </div>
+        </div>
+      </div>
+      {% else %}
+      <p class="text-muted mb-0">
+        No security alerts triggered during this clip.
+      </p>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endif %} {% endblock %}

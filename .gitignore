@@ -1,0 +1,25 @@
+# Python & Conda
+__pycache__/
+*.py[cod]
+*$py.class
+.DS_Store
+.env
+
+# Local Database & Personal Face/Snapshot Data
+database/*.db
+database/*.db-wal
+database/*.db-shm
+uploads/faces/*
+uploads/videos/*
+results/snapshots/*
+results/processed_videos/*
+
+# Keep folder structure in Git
+!uploads/faces/.gitkeep
+!uploads/videos/.gitkeep
+!results/snapshots/.gitkeep
+!results/processed_videos/.gitkeep
+
+# Large Model Weights (auto-downloaded or placed locally)
+*.pt
+models/*.onnx

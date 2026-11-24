@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card shadow-sm mb-4">
+    <div class="card-header bg-white fw-bold d-flex justify-content-between align-items-center">
+        <span>Smartphone IP Camera Connection</span>
+        <span class="badge {{ 'bg-success' if is_running else 'bg-secondary' }}">{{ status_message }}</span>
+    </div>
+    <div class="card-body">
+        {% if not is_running %}
+        <form method="POST" action="{{ url_for('start_monitor') }}" class="row g-3 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label small fw-semibold">Camera Source</label>
+                <select name="source_type" id="sourceType" class="form-select" onchange="toggleUrlInput()">
+                    <option value="ip_cam" selected>Smartphone IP Camera (Wi-Fi)</option>
+                    <option value="webcam">MacBook Built-in Webcam (Fallback)</option>
+                </select>
+            </div>
+            <div class="col-md-5" id="urlInputGroup">
+                <label class="form-label small fw-semibold">Phone Stream URL (IP Webcam / DroidCam)</label>
+                <input type="text" name="ip_camera_url" class="form-control" value="{{ settings.ip_camera_url }}" placeholder="http://192.168.1.34:8080/video" required>
+            </div>
+            <div class="col-md-2">
+                <div class="form-check mb-2">
+                    <input class="form-check-input" type="checkbox" name="force_enhance" id="forceEnhance" {{ 'checked' if force_enhance else '' }}>
+                    <label class="form-check-label" for="forceEnhance">Night Mode</label>
+                </div>
+            </div>
+            <div class="col-md-2 d-grid">
+                <button type="submit" class="btn btn-success">Start Live Feed</button>
+            </div>
+        </form>
+        {% else %}
+        <div class="d-flex gap-2 align-items-center">
+            <form method="POST" action="{{ url_for('stop_monitor') }}">
+                <button type="submit" class="btn btn-danger">Stop Camera Stream</button>
+            </form>
+            <button type="button" id="nightToggleBtn" class="btn btn-outline-dark" onclick="toggleNightMode()">
+                Night Enhancement: {{ 'ON' if force_enhance else 'AUTO' }}
+            </button>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% if is_running %}
+<div class="row g-4">
+    <div class="col-lg-8">
+        <div class="card shadow-sm">
+            <div class="card-header bg-dark text-white fw-bold">Live Entrance CCTV Stream</div>
+            <div class="card-body p-0 bg-black text-center">
+                <img src="{{ url_for('video_feed') }}" class="img-fluid w-100" alt="Live IP Camera Stream">
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card shadow-sm mb-3">
+            <div class="card-header bg-white fw-bold">Live Tracked Visitors</div>
+            <div class="card-body p-2">
+                <table class="table table-sm mb-0">
+                    <thead>
+                        <tr><th>ID</th><th>Identity</th><th>Dwell</th></tr>
+                    </thead>
+                    <tbody id="liveTracksBody">
+                        <tr><td colspan="3" class="text-muted text-center">Scanning entrance...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="card shadow-sm">
+            <div class="card-header bg-white fw-bold">Live Telegram Alerts</div>
+            <div class="card-body" id="liveEventsBox" style="max-height: 280px; overflow-y: auto;">
+                <p class="text-muted small mb-0">Waiting for security triggers...</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<script>
+function toggleUrlInput() {
+    const type = document.getElementById("sourceType").value;
+    const grp = document.getElementById("urlInputGroup");
+    grp.style.display = (type === "webcam") ? "none" : "block";
+}
+
+function toggleNightMode() {
+    fetch("{{ url_for('toggle_night') }}", { method: "POST" })
+        .then(r => r.json())
+        .then(data => {
+            document.getElementById("nightToggleBtn").innerText =
+                "Night Enhancement: " + (data.force_enhance ? "ON" : "AUTO");
+        });
+}
+
+{% if is_running %}
+setInterval(() => {
+    fetch("{{ url_for('monitor_status') }}")
+        .then(r => r.json())
+        .then(data => {
+            const tbody = document.getElementById("liveTracksBody");
+            if (data.tracks && data.tracks.length > 0) {
+                tbody.innerHTML = data.tracks.map(t => `
+                    <tr>
+                        <td><strong>#${t.track_id}</strong></td>
+                        <td><span class="badge ${t.name === 'Unknown' ? 'bg-danger' : 'bg-success'}">${t.name}</span></td>
+                        <td>${t.dwell_time}s</td>
+                    </tr>
+                `).join("");
+            }
+
+            const evBox = document.getElementById("liveEventsBox");
+            if (data.events && data.events.length > 0) {
+                evBox.innerHTML = data.events.map(e => `
+                    <div class="border-bottom pb-2 mb-2">
+                        <div class="d-flex justify-content-between">
+                            <strong class="small">${e.event_type}</strong>
+                            <span class="badge ${e.telegram_sent ? 'bg-success' : 'bg-secondary'}">
+                                ${e.telegram_sent ? 'Telegram Sent' : 'Logged'}
+                            </span>
+                        </div>
+                        <div class="small text-muted">${e.description}</div>
+                    </div>
+                `).join("");
+            }
+        });
+}, 2000);
+{% endif %}
+</script>
+{% endblock %}
+EOF

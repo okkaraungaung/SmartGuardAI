@@ -1,0 +1,510 @@
+{% extends "base.html" %} {% block content %}
+<div class="row g-4 mb-4">
+  <!-- Option A: Apple-Style 360° Face ID Radial Scanner -->
+  <div class="col-lg-7">
+    <div class="card shadow-sm h-100 border-primary">
+      <div
+        class="card-header bg-primary text-white fw-bold d-flex justify-content-between align-items-center"
+      >
+        <span>Face ID Enrollment (360° Head Circle)</span>
+        <span class="badge bg-light text-primary" id="stepCounter">0%</span>
+      </div>
+      <div class="card-body">
+        <div class="row g-2 mb-3">
+          <div class="col-md-5">
+            <input
+              type="text"
+              id="scanName"
+              class="form-control"
+              placeholder="Enter Name (e.g., Okkar)"
+            />
+          </div>
+          <div class="col-md-7 d-flex gap-2">
+            <button
+              type="button"
+              id="startScanBtn"
+              class="btn btn-primary w-100"
+              onclick="startAppleFaceScan()"
+            >
+              Start Face ID Scan
+            </button>
+            <button
+              type="button"
+              id="ipCamScanBtn"
+              class="btn btn-outline-primary w-100"
+              onclick="enrollFromIpCamera()"
+            >
+              From Live IP Cam
+            </button>
+            <button
+              type="button"
+              id="cancelScanBtn"
+              class="btn btn-outline-danger d-none"
+              onclick="cancelFaceIdScan()"
+            >
+              Stop
+            </button>
+          </div>
+        </div>
+
+        <!-- Apple Face ID Circular Viewport with 36 Radial SVG Ticks -->
+        <div class="d-flex justify-content-center my-2">
+          <div
+            style="
+              position: relative;
+              width: 270px;
+              height: 270px;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+            "
+          >
+            <svg
+              id="faceIdDial"
+              viewBox="0 0 270 270"
+              style="
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 270px;
+                height: 270px;
+                pointer-events: none;
+              "
+            ></svg>
+            <div
+              style="
+                width: 214px;
+                height: 214px;
+                border-radius: 50%;
+                overflow: hidden;
+                background: #111;
+                box-shadow: 0 0 0 3px #222;
+              "
+            >
+              <video
+                id="webcamPreview"
+                autoplay
+                playsinline
+                muted
+                style="
+                  width: 100%;
+                  height: 100%;
+                  object-fit: cover;
+                  transform: scaleX(-1);
+                "
+              ></video>
+            </div>
+          </div>
+        </div>
+        <canvas id="captureCanvas" style="display: none"></canvas>
+
+        <div id="scanInstruction" class="fw-bold text-center text-muted mt-2">
+          Enter your name and click "Start Face ID Scan", then slowly roll your
+          head in a circle.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Option B: Manual Photo Upload -->
+  <div class="col-lg-5">
+    <div class="card shadow-sm h-100">
+      <div class="card-header bg-white fw-bold">Or Upload Photos Manually</div>
+      <div class="card-body">
+        <form method="POST" enctype="multipart/form-data">
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Full Name</label>
+            <input
+              type="text"
+              name="name"
+              class="form-control"
+              placeholder="Full Name"
+              required
+            />
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-semibold"
+              >Select 3–5 Photos</label
+            >
+            <input
+              type="file"
+              name="photos"
+              class="form-control"
+              accept=".jpg,.jpeg,.png"
+              multiple
+              required
+            />
+            <small class="text-muted"
+              >Tip: Upload screenshots from your overhead IP camera for maximum
+              CCTV accuracy.</small
+            >
+          </div>
+          <div class="d-grid">
+            <button type="submit" class="btn btn-outline-success">
+              Upload & Extract
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Registered Profiles Grid -->
+<div class="card shadow-sm">
+  <div class="card-header bg-white fw-bold">
+    Registered Profiles ({{ users|length }})
+  </div>
+  <div class="card-body">
+    <div class="row g-3">
+      {% for user in users %}
+      <div class="col-md-3 col-sm-6">
+        <div class="card h-100 text-center">
+          <img
+            src="{{ url_for('serve_face', filename=user.face_image) }}"
+            class="card-img-top"
+            style="height: 200px; object-fit: cover"
+            alt="{{ user.name }}"
+          />
+          <div class="card-body">
+            <h6 class="fw-bold mb-1">{{ user.name }}</h6>
+            <span class="badge bg-info text-dark mb-2">
+              {{ user.embedding|length if user.embedding and user.embedding[0]
+              is iterable else 1 }} angle sample(s)
+            </span>
+            <small class="text-muted d-block mb-2"
+              >Added: {{ user.created_at }}</small
+            >
+            <form
+              method="POST"
+              action="{{ url_for('remove_visitor', user_id=user.id) }}"
+            >
+              <button type="submit" class="btn btn-sm btn-outline-danger">
+                Remove
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+      {% else %}
+      <p class="text-muted mb-0">No family members registered yet.</p>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<script>
+  const NUM_TICKS = 36;
+  const TARGET_SECTORS = 6; // Center + any 6 directional angles around the circle
+  let activeStream = null;
+  let scanningActive = false;
+
+  // Build 36 Apple-style radial tick marks around the SVG dial
+  function initRadialDial() {
+    const svg = document.getElementById("faceIdDial");
+    svg.innerHTML = "";
+    const cx = 135,
+      cy = 135,
+      rInner = 114,
+      rOuter = 130;
+    for (let i = 0; i < NUM_TICKS; i++) {
+      // Angle 0 at right, going counter-clockwise so math degrees match screen position
+      const rad = -i * (360 / NUM_TICKS) * (Math.PI / 180);
+      const x1 = cx + rInner * Math.cos(rad);
+      const y1 = cy + rInner * Math.sin(rad);
+      const x2 = cx + rOuter * Math.cos(rad);
+      const y2 = cy + rOuter * Math.sin(rad);
+
+      const line = document.createElementNS(
+        "http://www.w3.org/2000/svg",
+        "line",
+      );
+      line.setAttribute("id", "tick-" + i);
+      line.setAttribute("x1", x1.toFixed(1));
+      line.setAttribute("y1", y1.toFixed(1));
+      line.setAttribute("x2", x2.toFixed(1));
+      line.setAttribute("y2", y2.toFixed(1));
+      line.setAttribute("stroke", "#adb5bd");
+      line.setAttribute("stroke-width", "4");
+      line.setAttribute("stroke-linecap", "round");
+      line.style.transition = "stroke 0.2s, stroke-width 0.2s";
+      svg.appendChild(line);
+    }
+  }
+  initRadialDial();
+
+  function lightUpArc(centerDeg, spanDeg = 55) {
+    const step = 360 / NUM_TICKS;
+    for (let i = 0; i < NUM_TICKS; i++) {
+      const tickDeg = i * step;
+      let diff = Math.abs(((tickDeg - centerDeg + 540) % 360) - 180);
+      if (diff <= spanDeg / 2) {
+        const tick = document.getElementById("tick-" + i);
+        if (tick) {
+          tick.setAttribute("stroke", "#198754");
+          tick.setAttribute("stroke-width", "5");
+        }
+      }
+    }
+  }
+
+  function lightAllTicks(color) {
+    for (let i = 0; i < NUM_TICKS; i++) {
+      const tick = document.getElementById("tick-" + i);
+      if (tick) tick.setAttribute("stroke", color);
+    }
+  }
+
+  function stopWebcam() {
+    scanningActive = false;
+    if (activeStream) {
+      activeStream.getTracks().forEach((t) => t.stop());
+      activeStream = null;
+    }
+    document.getElementById("webcamPreview").srcObject = null;
+  }
+
+  function cancelFaceIdScan() {
+    stopWebcam();
+    initRadialDial();
+    document.getElementById("startScanBtn").disabled = false;
+    document.getElementById("ipCamScanBtn").disabled = false;
+    document.getElementById("cancelScanBtn").classList.add("d-none");
+    document.getElementById("stepCounter").innerText = "0%";
+    document.getElementById("scanInstruction").className =
+      "fw-bold text-center text-muted mt-2";
+    document.getElementById("scanInstruction").innerText = "Scan cancelled.";
+  }
+
+  async function startAppleFaceScan() {
+    const nameInput = document.getElementById("scanName");
+    const name = nameInput.value.trim();
+    const statusEl = document.getElementById("scanInstruction");
+    const counterEl = document.getElementById("stepCounter");
+    const startBtn = document.getElementById("startScanBtn");
+    const ipBtn = document.getElementById("ipCamScanBtn");
+    const cancelBtn = document.getElementById("cancelScanBtn");
+    const video = document.getElementById("webcamPreview");
+    const canvas = document.getElementById("captureCanvas");
+
+    if (!name) {
+      alert("Please enter a name before starting the scan.");
+      nameInput.focus();
+      return;
+    }
+
+    initRadialDial();
+    startBtn.disabled = true;
+    ipBtn.disabled = true;
+    cancelBtn.classList.remove("d-none");
+    counterEl.innerText = "0%";
+    statusEl.className = "fw-bold text-center text-primary mt-2";
+    statusEl.innerText = "Position your face inside the frame...";
+
+    try {
+      activeStream = await navigator.mediaDevices.getUserMedia({
+        video: { width: 640, height: 480 },
+      });
+      video.srcObject = activeStream;
+      await new Promise((r) => setTimeout(r, 600));
+    } catch (err) {
+      statusEl.className = "fw-bold text-center text-danger mt-2";
+      statusEl.innerText =
+        "Webcam access denied. Allow camera permission in your browser.";
+      startBtn.disabled = false;
+      ipBtn.disabled = false;
+      cancelBtn.classList.add("d-none");
+      return;
+    }
+
+    canvas.width = video.videoWidth || 640;
+    canvas.height = video.videoHeight || 480;
+    const ctx = canvas.getContext("2d");
+
+    scanningActive = true;
+    let calibrated = false;
+    let baseYaw = 0.0;
+    let basePitch = 0.55;
+    let frontPreviewFrame = null;
+    const sectorEmbeddings = {}; // sector -> embedding
+
+    while (scanningActive) {
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
+
+      try {
+        const resp = await fetch("{{ url_for('check_pose') }}", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            frame: dataUrl,
+            target_pose: "radial",
+            base_yaw: baseYaw,
+            base_pitch: basePitch,
+          }),
+        });
+        const res = await resp.json();
+
+        if (!res.detected) {
+          statusEl.className = "fw-bold text-center text-danger mt-2";
+          statusEl.innerText = "Position your face inside the circle";
+        } else if (res.too_far) {
+          statusEl.className = "fw-bold text-center text-warning mt-2";
+          statusEl.innerText = "Move slightly closer to the camera";
+        } else if (res.matched && res.embedding) {
+          // Step 1: Auto-calibrate center baseline on first clear detection
+          if (!calibrated) {
+            baseYaw = res.yaw;
+            basePitch = res.pitch;
+            calibrated = true;
+            frontPreviewFrame = dataUrl;
+            sectorEmbeddings["center"] = res.embedding;
+            statusEl.className = "fw-bold text-center text-success mt-2";
+            statusEl.innerText =
+              "Move your head slowly in a circle to complete the ring...";
+          } else if (res.sector !== "center" && !sectorEmbeddings[res.sector]) {
+            sectorEmbeddings[res.sector] = res.embedding;
+            lightUpArc(res.angle_deg, 65);
+          }
+
+          const capturedDirs = Object.keys(sectorEmbeddings).filter(
+            (k) => k !== "center",
+          ).length;
+          const pct = Math.min(
+            100,
+            Math.round((capturedDirs / TARGET_SECTORS) * 100),
+          );
+          counterEl.innerText = pct + "%";
+
+          if (capturedDirs >= TARGET_SECTORS) {
+            lightAllTicks("#198754");
+            counterEl.innerText = "100%";
+            break;
+          }
+        }
+      } catch (e) {}
+
+      await new Promise((r) => setTimeout(r, 150));
+    }
+
+    stopWebcam();
+    cancelBtn.classList.add("d-none");
+
+    const finalEmbeddings = Object.values(sectorEmbeddings);
+    if (finalEmbeddings.length < 4) return;
+
+    statusEl.className = "fw-bold text-center text-success mt-2";
+    statusEl.innerText = "Face ID Complete! Saving profile...";
+
+    const saveResp = await fetch("{{ url_for('scan_visitor') }}", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: name,
+        embeddings: finalEmbeddings,
+        preview_frame: frontPreviewFrame,
+      }),
+    });
+    const saveResult = await saveResp.json();
+    if (saveResult.ok) {
+      window.location.reload();
+    } else {
+      statusEl.className = "fw-bold text-center text-danger mt-2";
+      statusEl.innerText = saveResult.message;
+      startBtn.disabled = false;
+      ipBtn.disabled = false;
+    }
+  }
+
+  async function enrollFromIpCamera() {
+    const nameInput = document.getElementById("scanName");
+    const name = nameInput.value.trim();
+    const statusEl = document.getElementById("scanInstruction");
+    const counterEl = document.getElementById("stepCounter");
+    const startBtn = document.getElementById("startScanBtn");
+    const ipBtn = document.getElementById("ipCamScanBtn");
+
+    if (!name) {
+      alert("Please enter a name first.");
+      nameInput.focus();
+      return;
+    }
+
+    initRadialDial();
+    startBtn.disabled = true;
+    ipBtn.disabled = true;
+    const ipPrompts = [
+      "1/5: Stand at entrance looking naturally at phone camera...",
+      "2/5: Look slightly left...",
+      "3/5: Look slightly right...",
+      "4/5: Take half a step closer...",
+      "5/5: Take half a step back...",
+    ];
+
+    const collectedEmbeddings = [];
+    let previewFrame = null;
+
+    for (let i = 0; i < 5; i++) {
+      counterEl.innerText = `${(i + 1) * 20}%`;
+      statusEl.className = "fw-bold text-center text-primary mt-2";
+      statusEl.innerText = ipPrompts[i];
+      await new Promise((r) => setTimeout(r, 1100));
+
+      let captured = false;
+      for (let attempt = 0; attempt < 15 && !captured; attempt++) {
+        const resp = await fetch("{{ url_for('check_pose') }}", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ target_pose: "ip_cam" }),
+        });
+        const res = await resp.json();
+        if (res.message) {
+          statusEl.className = "fw-bold text-center text-danger mt-2";
+          statusEl.innerText =
+            res.message + " Start Live Camera first on the Live Camera tab.";
+          startBtn.disabled = false;
+          ipBtn.disabled = false;
+          return;
+        }
+        if (res.matched && res.embedding) {
+          collectedEmbeddings.push(res.embedding);
+          if (!previewFrame && res.preview_frame)
+            previewFrame = res.preview_frame;
+          lightUpArc(i * 72, 75);
+          captured = true;
+        } else {
+          await new Promise((r) => setTimeout(r, 300));
+        }
+      }
+      if (!captured) {
+        statusEl.className = "fw-bold text-center text-danger mt-2";
+        statusEl.innerText =
+          "Could not detect face on IP camera. Stand closer in view.";
+        startBtn.disabled = false;
+        ipBtn.disabled = false;
+        return;
+      }
+    }
+
+    lightAllTicks("#198754");
+    statusEl.innerText = "Saving 5 overhead CCTV samples...";
+    const saveResp = await fetch("{{ url_for('scan_visitor') }}", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: name,
+        embeddings: collectedEmbeddings,
+        preview_frame: previewFrame,
+      }),
+    });
+    const saveResult = await saveResp.json();
+    if (saveResult.ok) {
+      window.location.reload();
+    } else {
+      statusEl.innerText = saveResult.message;
+      startBtn.disabled = false;
+      ipBtn.disabled = false;
+    }
+  }
+</script>
+{% endblock %}

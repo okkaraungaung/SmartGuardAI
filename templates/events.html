@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card shadow-sm mb-4">
+    <div class="card-header bg-white fw-bold">Filter Security Event History</div>
+    <div class="card-body">
+        <form method="GET" class="row g-3 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label small fw-semibold">Event Type</label>
+                <select name="event_type" class="form-select">
+                    {% for opt_val, opt_label in [
+                        ('ALL', 'All Events'),
+                        ('Unknown Person', 'Unknown Person'),
+                        ('Loitering', 'Loitering'),
+                        ('Package Detected', 'Package Detected'),
+                        ('Vehicle Detected', 'Vehicle Detected')
+                    ] %}
+                    <option value="{{ opt_val }}" {{ 'selected' if selected_type == opt_val else '' }}>{{ opt_label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label small fw-semibold">Recorded Date</label>
+                <input type="date" name="date" class="form-control" value="{{ selected_date }}">
+            </div>
+            <div class="col-md-4 d-flex gap-2">
+                <button type="submit" class="btn btn-primary w-100">Filter</button>
+                <a href="{{ url_for('events') }}" class="btn btn-outline-secondary">Reset</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-header bg-white fw-bold">Event Log ({{ events|length }})</div>
+    <div class="card-body table-responsive">
+        <table class="table table-bordered align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>ID</th>
+                    <th>Snapshot</th>
+                    <th>Type</th>
+                    <th>Severity</th>
+                    <th>Description</th>
+                    <th>Source Video</th>
+                    <th>Logged At</th>
+                    <th>Telegram</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ev in events %}
+                <tr>
+                    <td>#{{ ev.id }}</td>
+                    <td>
+                        {% if ev.snapshot_path %}
+                        <a href="{{ url_for('serve_snapshot', filename=ev.snapshot_path) }}" target="_blank">
+                            <img src="{{ url_for('serve_snapshot', filename=ev.snapshot_path) }}" class="rounded" style="width: 110px; height: 65px; object-fit: cover;">
+                        </a>
+                        {% endif %}
+                    </td>
+                    <td class="fw-semibold">{{ ev.event_type }}</td>
+                    <td>
+                        {% if ev.severity == 'Critical' %}
+                            <span class="badge bg-danger">{{ ev.severity }}</span>
+                        {% elif ev.severity == 'Warning' %}
+                            <span class="badge bg-warning text-dark">{{ ev.severity }}</span>
+                        {% else %}
+                            <span class="badge bg-info text-dark">{{ ev.severity }}</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ ev.description }}</td>
+                    <td>{{ ev.video_filename or 'N/A' }} ({{ ev.video_timestamp }}s)</td>
+                    <td class="small">{{ ev.event_time }}</td>
+                    <td>
+                        {% if ev.telegram_sent %}
+                            <span class="badge bg-success">Delivered</span>
+                        {% else %}
+                            <span class="badge bg-secondary">Skipped</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="8" class="text-center text-muted py-4">No matching security events found.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
