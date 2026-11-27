@@ -47,60 +47,68 @@
           </div>
         </div>
 
-        <!-- Apple Face ID Circular Viewport with 36 Radial SVG Ticks -->
+        <!-- Full-Frame Camera Viewport with Centered 360° Radial SVG Dial -->
         <div class="d-flex justify-content-center my-2">
           <div
             style="
               position: relative;
-              width: 270px;
-              height: 270px;
-              display: flex;
-              align-items: center;
-              justify-content: center;
+              width: 100%;
+              max-width: 440px;
+              aspect-ratio: 4 / 3;
+              background: #111;
+              border-radius: 12px;
+              overflow: hidden;
+              box-shadow: 0 0 0 2px #222;
             "
           >
+            <video
+              id="webcamPreview"
+              autoplay
+              playsinline
+              muted
+              style="
+                width: 100%;
+                height: 100%;
+                object-fit: contain;
+                transform: scaleX(-1);
+              "
+            ></video>
+
+            <!-- Dimmed vignette outside the center Face ID circle so user knows exact capture area -->
+            <div
+              style="
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                width: 214px;
+                height: 214px;
+                transform: translate(-50%, -50%);
+                border-radius: 50%;
+                box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.45);
+                pointer-events: none;
+              "
+            ></div>
+
             <svg
               id="faceIdDial"
               viewBox="0 0 270 270"
               style="
                 position: absolute;
-                top: 0;
-                left: 0;
+                top: 50%;
+                left: 50%;
                 width: 270px;
                 height: 270px;
+                transform: translate(-50%, -50%);
                 pointer-events: none;
               "
             ></svg>
-            <div
-              style="
-                width: 214px;
-                height: 214px;
-                border-radius: 50%;
-                overflow: hidden;
-                background: #111;
-                box-shadow: 0 0 0 3px #222;
-              "
-            >
-              <video
-                id="webcamPreview"
-                autoplay
-                playsinline
-                muted
-                style="
-                  width: 100%;
-                  height: 100%;
-                  object-fit: cover;
-                  transform: scaleX(-1);
-                "
-              ></video>
-            </div>
           </div>
         </div>
         <canvas id="captureCanvas" style="display: none"></canvas>
 
         <div id="scanInstruction" class="fw-bold text-center text-muted mt-2">
-          Enter your name and click "Start Face ID Scan", then slowly roll your
-          head in a circle.
+          Enter your name and click "Start Face ID Scan", keep only your face
+          inside the center ring, and slowly roll your head in a circle.
         </div>
       </div>
     </div>
@@ -205,8 +213,8 @@
     svg.innerHTML = "";
     const cx = 135,
       cy = 135,
-      rInner = 114,
-      rOuter = 130;
+      rInner = 107,
+      rOuter = 123;
     for (let i = 0; i < NUM_TICKS; i++) {
       // Angle 0 at right, going counter-clockwise so math degrees match screen position
       const rad = -i * (360 / NUM_TICKS) * (Math.PI / 180);
@@ -299,7 +307,7 @@
     cancelBtn.classList.remove("d-none");
     counterEl.innerText = "0%";
     statusEl.className = "fw-bold text-center text-primary mt-2";
-    statusEl.innerText = "Position your face inside the frame...";
+    statusEl.innerText = "Position your face inside the center circle...";
 
     try {
       activeStream = await navigator.mediaDevices.getUserMedia({
@@ -317,8 +325,15 @@
       return;
     }
 
-    canvas.width = video.videoWidth || 640;
-    canvas.height = video.videoHeight || 480;
+    // Crop to the centered Face ID circle area so bystanders on the sides are excluded
+    const vw = video.videoWidth || 640;
+    const vh = video.videoHeight || 480;
+    const cropSize = Math.round(Math.min(vw, vh) * 0.72);
+    const sx = Math.round((vw - cropSize) / 2);
+    const sy = Math.round((vh - cropSize) / 2);
+
+    canvas.width = 400;
+    canvas.height = 400;
     const ctx = canvas.getContext("2d");
 
     scanningActive = true;
@@ -329,7 +344,7 @@
     const sectorEmbeddings = {}; // sector -> embedding
 
     while (scanningActive) {
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      ctx.drawImage(video, sx, sy, cropSize, cropSize, 0, 0, 400, 400);
       const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
 
       try {
@@ -347,7 +362,7 @@
 
         if (!res.detected) {
           statusEl.className = "fw-bold text-center text-danger mt-2";
-          statusEl.innerText = "Position your face inside the circle";
+          statusEl.innerText = "Position your face inside the center circle";
         } else if (res.too_far) {
           statusEl.className = "fw-bold text-center text-warning mt-2";
           statusEl.innerText = "Move slightly closer to the camera";
