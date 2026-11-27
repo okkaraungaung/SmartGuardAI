@@ -1,14 +1,16 @@
 import os
+import json
 import time
 import traceback
 import threading
 import cv2
+import numpy as np
 from datetime import datetime
 from modules.image_processing import enhance_frame
 from modules.person_tracking import PersonTrackerManager
 from modules.suspicious_activity import SecurityEventEngine
 from modules.telegram_bot import send_telegram_alert
-from database.db import insert_video, insert_detections_bulk, insert_security_event
+from database.db import get_settings, insert_video, insert_detections_bulk, insert_security_event
 
 
 class LiveCameraManager:
@@ -18,6 +20,8 @@ class LiveCameraManager:
         self.snapshot_dir = snapshot_dir
         self.db_path = db_path
         self.config = config
+        self.roi_enabled = False
+        self.roi_polygon = [[0.20, 0.35], [0.80, 0.35], [0.92, 0.98], [0.08, 0.98]]
 
         self.cap = None
         self.running = False
@@ -37,9 +41,19 @@ class LiveCameraManager:
         self._reader_thread = None
         self._ai_thread = None
         self._render_thread = None
+        self.event_engine = None
 
     def start(self, source, source_label, registered_users, runtime_settings, force_enhance=False):
         self.stop()
+
+        saved_settings = get_settings(self.db_path)
+        self.roi_enabled = saved_settings.get("roi_enabled", "1") == "1"
+        try:
+            saved_poly = json.loads(saved_settings.get("roi_polygon", "[]"))
+            if isinstance(saved_poly, list) and len(saved_poly) >= 3:
+                self.roi_polygon = saved_poly
+        except Exception:
+            pass
 
         raw_source = str(source).strip()
         candidates = [int(raw_source)] if raw_source.isdigit() else [raw_source]
@@ -98,6 +112,13 @@ class LiveCameraManager:
     def set_night_mode(self, enabled):
         self.force_enhance = bool(enabled)
 
+    def update_roi(self, enabled, polygon=None):
+        self.roi_enabled = bool(enabled)
+        if polygon and len(polygon) >= 3:
+            self.roi_polygon = polygon
+        if self.event_engine is not None:
+            self.event_engine.set_roi(self.roi_enabled, self.roi_polygon)
+
     def _grab_frames_loop(self):
         """Thread 1: Continuously drains camera buffer so latest_raw_frame has zero lag."""
         while self.running and self.cap is not None:
@@ -134,6 +155,25 @@ class LiveCameraManager:
                 detections_copy = list(self.latest_detections) if age < 0.45 else []
 
             annotated = self.detector.draw_detections(enh_frame, detections_copy)
+            if self.roi_enabled and self.roi_polygon and len(self.roi_polygon) >= 3:
+                h, w = annotated.shape[:2]
+                pts = np.array(
+                    [[int(pt[0] * w), int(pt[1] * h)] for pt in self.roi_polygon],
+                    dtype=np.int32
+                )
+                overlay = annotated.copy()
+                cv2.fillPoly(overlay, [pts], (0, 215, 255))
+                cv2.addWeighted(overlay, 0.16, annotated, 0.84, 0, annotated)
+                cv2.polylines(annotated, [pts], isClosed=True, color=(0, 215, 255), thickness=2)
+                cv2.putText(
+                    annotated,
+                    "DOORWAY ROI ZONE",
+                    (max(8, pts[0][0]), max(22, pts[0][1] - 8)),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.55,
+                    (0, 215, 255),
+                    2
+                )
 
             mode_tag = "NIGHT-ENHANCED" if (stats["is_low_light"] or self.force_enhance) else "LIVE"
             cv2.putText(
@@ -196,8 +236,11 @@ class LiveCameraManager:
                 cooldown_seconds=self.config["EVENT_COOLDOWN_SECONDS"],
                 enable_unknown=runtime_settings.get("enable_unknown", "1") == "1",
                 enable_loitering=runtime_settings.get("enable_loitering", "1") == "1",
-                enable_package=runtime_settings.get("enable_package", "1") == "1"
+                enable_package=runtime_settings.get("enable_package", "1") == "1",
+                roi_enabled=self.roi_enabled,
+                roi_polygon=self.roi_polygon
             )
+            self.event_engine = event_engine
 
             bot_token = runtime_settings.get("telegram_bot_token", "").strip()
             chat_id = runtime_settings.get("telegram_chat_id", "").strip()
@@ -232,7 +275,6 @@ class LiveCameraManager:
                     elapsed = round(time.time() - start_time, 1)
                     detections = self.detector.detect_and_track(enh_frame)
 
-                    # Use enhanced frame in dark rooms, sharp unblurred frame in normal lighting
                     face_source = enh_frame if (stats["is_low_light"] or self.force_enhance) else orig_resized
                     face_matches = self.face_recognizer.identify_faces_in_frame(
                         face_source, detections, registered_users
@@ -279,6 +321,7 @@ class LiveCameraManager:
 
                     if detections:
                         annotated_snap = self.detector.draw_detections(enh_frame, detections)
+                        annotated_snap = event_engine.draw_roi_overlay(annotated_snap)
                         new_events = event_engine.evaluate_frame(
                             detections=detections,
                             tracker_mgr=tracker_mgr,
@@ -287,6 +330,12 @@ class LiveCameraManager:
                             video_basename=session_name,
                             timestamp=elapsed
                         )
+                        for det in detections:
+                            tid = det.get("track_id")
+                            if det["label"] == "person" and tid in tracker_mgr.tracks:
+                                info = tracker_mgr.tracks[tid]
+                                det["dwell_time"] = info.get("roi_dwell", 0.0)
+                                det["in_roi"] = info.get("in_roi", True)
 
                         for ev in new_events:
                             clock_str = datetime.now().strftime("%H:%M:%S")
@@ -310,7 +359,7 @@ class LiveCameraManager:
         except Exception:
             print("[SmartGuard AI Init Error]:")
             traceback.print_exc()
-    
+            
     def generate_mjpeg(self):
         while self.running:
             with self.frame_lock:

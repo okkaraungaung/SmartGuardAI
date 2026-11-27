@@ -71,7 +71,10 @@ class ObjectDetector:
                 display_name = person_name or "Scanning..."
                 if display_name in ("Unknown", "Scanning..."):
                     color = self.colors["unknown_person"]
-                    extra = f" ({dwell:.1f}s)" if display_name == "Unknown" else ""
+                    if display_name == "Unknown":
+                        extra = f" ({dwell:.1f}s)" if det.get("in_roi", True) else " (Outside ROI)"
+                    else:
+                        extra = ""
                 else:
                     color = self.colors["known_person"]
                     extra = f" ({face_score:.2f})" if face_score > 0 else ""
