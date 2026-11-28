@@ -14,6 +14,18 @@ def get_connection(db_path):
 def init_db(db_path, default_settings=None):
     conn = get_connection(db_path)
     cursor = conn.cursor()
+    default_settings = {
+        "loitering_threshold": "15.0",
+        "detection_confidence": "0.45",
+        "enable_unknown": "1",
+        "enable_loitering": "1",
+        "enable_package": "1",
+        "enable_vehicle": "0",
+        "telegram_bot_token": "",
+        "telegram_chat_id": "",
+        "roi_enabled": "1",
+        "roi_polygon": "[[0.20, 0.35], [0.80, 0.35], [0.92, 0.98], [0.08, 0.98]]"
+    }
 
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS users (

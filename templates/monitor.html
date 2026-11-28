@@ -288,6 +288,7 @@
     justify-content: space-between;
     align-items: center;
     border-bottom: 1px solid #1b344c;
+    gap: 10px;
 }
 
 .camera-screen-title {
@@ -354,12 +355,23 @@
     object-fit: contain;
 }
 
+#roiCanvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 2;
+}
+
 /* Subtle screen overlay */
 .camera-video-container::after {
     content: "";
     position: absolute;
     inset: 0;
     pointer-events: none;
+    z-index: 1;
     background: repeating-linear-gradient(
         to bottom,
         transparent 0px,
@@ -608,12 +620,34 @@
     line-height: 1.6;
 }
 
-/* No content */
-.panel-empty {
-    color: #6f859f;
-    text-align: center;
-    padding: 26px 10px;
+/* ROI controls styled for dark monitor theme */
+.roi-controls-panel {
+    background: linear-gradient(145deg, #0c1a2a, #0e1e30);
+    border: 1px solid #1c334a;
+    border-radius: 16px;
+    overflow: hidden;
+}
+
+.roi-controls-body {
+    padding: 12px 16px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.roi-controls-body .form-check-label {
+    color: #cde0f5;
+}
+
+.roi-feedback {
+    padding: 8px 16px;
+    border-top: 1px solid #1a3046;
+    background: #091524;
+    color: #9bc5e8;
     font-size: 12px;
+    font-weight: 600;
 }
 
 /* Responsive */
@@ -777,15 +811,21 @@
                         </div>
                     </div>
 
-                    <div class="camera-live-tag">
-                        <span></span> LIVE
+                    <div class="d-flex align-items-center gap-2">
+                        <span id="roiStatusBadge" class="badge {{ 'bg-warning text-dark' if settings.get('roi_enabled', '1') == '1' else 'bg-secondary' }}">
+                            {{ 'ROI Zone: Active' if settings.get('roi_enabled', '1') == '1' else 'ROI Zone: Off' }}
+                        </span>
+                        <div class="camera-live-tag">
+                            <span></span> LIVE
+                        </div>
                     </div>
                 </div>
 
                 <div class="camera-video-container">
-                    <img src="{{ url_for('video_feed') }}"
-                         class="img-fluid w-100"
+                    <img id="liveStreamImg" src="{{ url_for('video_feed') }}"
+                         class="img-fluid w-100 d-block"
                          alt="Live IP Camera Stream">
+                    <canvas id="roiCanvas"></canvas>
                 </div>
 
                 <div class="camera-footer">
@@ -793,6 +833,29 @@
                     <span class="camera-ready"><i></i> STREAM CONNECTED</span>
                 </div>
 
+            </div>
+
+            <!-- Doorway ROI Zone Controls -->
+            <div class="roi-controls-panel">
+                <div class="roi-controls-body">
+                    <div class="form-check form-switch mb-0">
+                        <input class="form-check-input" type="checkbox" id="roiToggle"
+                               {{ 'checked' if settings.get('roi_enabled', '1') == '1' else '' }}
+                               onchange="toggleRoiZone()">
+                        <label class="form-check-label fw-semibold small" for="roiToggle">
+                            Doorway ROI Zone Filter (Ignore Hallway Walk-bys)
+                        </label>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="button" id="drawRoiBtn" class="btn btn-sm btn-warning text-dark fw-semibold" onclick="startRoiDraw()">
+                            Draw 4-Point Zone on Video
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-light" onclick="resetRoiZone()">
+                            Reset Default Zone
+                        </button>
+                    </div>
+                </div>
+                <div id="roiFeedbackBanner" class="roi-feedback d-none"></div>
             </div>
 
         </div>
@@ -881,6 +944,136 @@ function toggleNightMode() {
 }
 
 {% if is_running %}
+let drawingRoi = false;
+let roiPoints = [];
+const streamImg = document.getElementById("liveStreamImg");
+const roiCanvas = document.getElementById("roiCanvas");
+const feedbackBanner = document.getElementById("roiFeedbackBanner");
+const roiStatusBadge = document.getElementById("roiStatusBadge");
+
+function showRoiMessage(text, styleClass) {
+    feedbackBanner.className = "roi-feedback " + styleClass;
+    feedbackBanner.innerText = text;
+    feedbackBanner.classList.remove("d-none");
+}
+
+function syncCanvasSize() {
+    if (!streamImg || !roiCanvas) return;
+    roiCanvas.width = streamImg.clientWidth;
+    roiCanvas.height = streamImg.clientHeight;
+}
+
+function renderPreviewPoints() {
+    syncCanvasSize();
+    const ctx = roiCanvas.getContext("2d");
+    ctx.clearRect(0, 0, roiCanvas.width, roiCanvas.height);
+    if (roiPoints.length === 0) return;
+
+    ctx.strokeStyle = "#ffc107";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    roiPoints.forEach((pt, idx) => {
+        const px = pt[0] * roiCanvas.width;
+        const py = pt[1] * roiCanvas.height;
+        if (idx === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+    });
+    if (roiPoints.length === 4) ctx.closePath();
+    ctx.stroke();
+
+    roiPoints.forEach((pt, idx) => {
+        const px = pt[0] * roiCanvas.width;
+        const py = pt[1] * roiCanvas.height;
+        ctx.fillStyle = "#ffc107";
+        ctx.beginPath();
+        ctx.arc(px, py, 7, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = "#000";
+        ctx.font = "bold 11px sans-serif";
+        ctx.fillText(String(idx + 1), px - 3, py + 4);
+    });
+}
+
+function startRoiDraw() {
+    drawingRoi = true;
+    roiPoints = [];
+    syncCanvasSize();
+    roiCanvas.style.pointerEvents = "auto";
+    roiCanvas.style.cursor = "crosshair";
+    renderPreviewPoints();
+    showRoiMessage("Click 4 corners directly on the live video above (0/4 clicked)...", "bg-warning-subtle text-dark");
+}
+
+async function toggleRoiZone() {
+    const enabled = document.getElementById("roiToggle").checked;
+    await fetch("{{ url_for('update_monitor_roi') }}", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ roi_enabled: enabled })
+    });
+    roiStatusBadge.className = "badge " + (enabled ? "bg-warning text-dark" : "bg-secondary");
+    roiStatusBadge.innerText = enabled ? "ROI Zone: Active" : "ROI Zone: Off";
+    showRoiMessage(enabled ? "Doorway ROI Zone enabled." : "Doorway ROI Zone disabled (monitoring full frame).", "bg-info-subtle text-dark");
+}
+
+async function resetRoiZone() {
+    drawingRoi = false;
+    roiPoints = [];
+    roiCanvas.style.pointerEvents = "none";
+    const ctx = roiCanvas.getContext("2d");
+    ctx.clearRect(0, 0, roiCanvas.width, roiCanvas.height);
+
+    const defaultPoly = [[0.20, 0.35], [0.80, 0.35], [0.92, 0.98], [0.08, 0.98]];
+    document.getElementById("roiToggle").checked = true;
+    await fetch("{{ url_for('update_monitor_roi') }}", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ roi_enabled: true, polygon: defaultPoly })
+    });
+    roiStatusBadge.className = "badge bg-warning text-dark";
+    roiStatusBadge.innerText = "ROI Zone: Active";
+    showRoiMessage("Reset to default Doorway ROI Zone.", "bg-success-subtle text-success");
+}
+
+if (roiCanvas) {
+    roiCanvas.addEventListener("click", async (e) => {
+        if (!drawingRoi) return;
+        const rect = roiCanvas.getBoundingClientRect();
+        const nx = Number(((e.clientX - rect.left) / rect.width).toFixed(3));
+        const ny = Number(((e.clientY - rect.top) / rect.height).toFixed(3));
+        roiPoints.push([nx, ny]);
+        renderPreviewPoints();
+
+        if (roiPoints.length < 4) {
+            showRoiMessage(`Corner ${roiPoints.length}/4 placed. Click ${4 - roiPoints.length} more corner(s)...`, "bg-warning-subtle text-dark");
+        } else {
+            drawingRoi = false;
+            roiCanvas.style.pointerEvents = "none";
+            document.getElementById("roiToggle").checked = true;
+
+            const resp = await fetch("{{ url_for('update_monitor_roi') }}", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ roi_enabled: true, polygon: roiPoints })
+            });
+            const res = await resp.json();
+
+            // Clear temporary canvas overlay after 600ms once backend stream renders the new polygon
+            setTimeout(() => {
+                const ctx = roiCanvas.getContext("2d");
+                ctx.clearRect(0, 0, roiCanvas.width, roiCanvas.height);
+            }, 600);
+
+            if (res.ok) {
+                roiStatusBadge.className = "badge bg-warning text-dark";
+                roiStatusBadge.innerText = "ROI Zone: Active";
+                showRoiMessage("Custom 4-Point Doorway ROI Zone saved and active on stream!", "bg-success-subtle text-success");
+            }
+        }
+    });
+}
+
 setInterval(() => {
     fetch("{{ url_for('monitor_status') }}")
         .then(r => r.json())
@@ -899,6 +1092,8 @@ setInterval(() => {
                         <td><span class="visitor-dwell">${t.dwell_time}s</span></td>
                     </tr>
                 `).join("");
+            } else {
+                tbody.innerHTML = `<tr><td colspan="3" class="visitor-empty">Scanning entrance...</td></tr>`;
             }
 
             const evBox = document.getElementById("liveEventsBox");
@@ -920,5 +1115,4 @@ setInterval(() => {
 }, 2000);
 {% endif %}
 </script>
-
 {% endblock %}

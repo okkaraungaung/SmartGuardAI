@@ -19,6 +19,7 @@ from modules.camera_stream import LiveCameraManager
 from modules.telegram_bot import send_telegram_alert
 import base64
 import numpy as np
+import json
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -75,12 +76,8 @@ def allowed_file(filename, allowed_set):
 @app.route("/")
 def dashboard():
     stats = get_dashboard_stats(app.config["DATABASE_PATH"])
-    return render_template(
-        "dashboard.html",
-        stats=stats,
-        camera_running=camera_manager.running,
-        camera_label=camera_manager.source_label
-    )
+    return render_template("dashboard.html", stats=stats)
+
 
 # Page 2: Live Smartphone IP Camera Monitor
 @app.route("/monitor")
@@ -149,6 +146,20 @@ def monitor_status():
         "events": camera_manager.recent_live_events
     })
 
+@app.route("/monitor/roi", methods=["POST"])
+def update_monitor_roi():
+    data = request.get_json(silent=True) or {}
+    roi_enabled = bool(data.get("roi_enabled", True))
+    polygon = data.get("polygon")
+
+    updates = {"roi_enabled": "1" if roi_enabled else "0"}
+    if polygon and isinstance(polygon, list) and len(polygon) >= 3:
+        updates["roi_polygon"] = json.dumps(polygon)
+
+    update_settings(app.config["DATABASE_PATH"], updates)
+    camera_manager.update_roi(roi_enabled, polygon)
+
+    return jsonify({"ok": True})
 
 @app.route("/video_feed")
 def video_feed():
