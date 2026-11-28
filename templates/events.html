@@ -1,88 +1,879 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="card shadow-sm mb-4">
-    <div class="card-header bg-white fw-bold">Filter Security Event History</div>
-    <div class="card-body">
-        <form method="GET" class="row g-3 align-items-end">
-            <div class="col-md-4">
-                <label class="form-label small fw-semibold">Event Type</label>
-                <select name="event_type" class="form-select">
-                    {% for opt_val, opt_label in [
-                        ('ALL', 'All Events'),
-                        ('Unknown Person', 'Unknown Person'),
-                        ('Loitering', 'Loitering'),
-                        ('Package Detected', 'Package Detected'),
-                        ('Vehicle Detected', 'Vehicle Detected')
-                    ] %}
-                    <option value="{{ opt_val }}" {{ 'selected' if selected_type == opt_val else '' }}>{{ opt_label }}</option>
-                    {% endfor %}
-                </select>
+
+<style>
+  .events-page {
+    --ev-ink: #18263b;
+    --ev-muted: #8a99ad;
+    --ev-border: #e8edf4;
+    --ev-blue: #3b82f6;
+  }
+
+  /* PAGE HEADER */
+  .events-page .events-heading {
+    margin-bottom: 25px;
+  }
+
+  .events-page .eyebrow {
+    color: #4389d8;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 1.8px;
+    text-transform: uppercase;
+    margin-bottom: 9px;
+  }
+
+  .events-page .page-title {
+    color: var(--ev-ink);
+    font-size: 27px;
+    font-weight: 800;
+    letter-spacing: -1px;
+    margin-bottom: 7px;
+  }
+
+  .events-page .page-subtitle {
+    color: var(--ev-muted);
+    font-size: 12.5px;
+  }
+
+  /* HERO */
+  .events-page .events-hero {
+    position: relative;
+    overflow: hidden;
+    border-radius: 19px;
+    background:
+      radial-gradient(circle at 90% 10%, rgba(59, 130, 246, .20), transparent 35%),
+      linear-gradient(115deg, #0a1424, #10243b, #152c48);
+    border: 1px solid #1b3552;
+    padding: 24px 27px;
+    margin-bottom: 24px;
+    color: white;
+    box-shadow: 0 12px 30px rgba(10, 20, 36, .09);
+  }
+
+  .events-page .events-hero::before {
+    content: "";
+    position: absolute;
+    right: -55px;
+    top: -120px;
+    width: 230px;
+    height: 230px;
+    border: 1px solid rgba(125, 211, 252, .09);
+    border-radius: 50%;
+    box-shadow:
+      0 0 0 25px rgba(125, 211, 252, .025),
+      0 0 0 50px rgba(125, 211, 252, .02);
+  }
+
+  .events-page .hero-inner {
+    position: relative;
+    z-index: 1;
+  }
+
+  .events-page .hero-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: #8bdcff;
+    background: rgba(56, 189, 248, .09);
+    border: 1px solid rgba(56, 189, 248, .17);
+    padding: 6px 10px;
+    border-radius: 7px;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 1.2px;
+    margin-bottom: 12px;
+  }
+
+  .events-page .hero-label span {
+    width: 6px;
+    height: 6px;
+    background: #38bdf8;
+    border-radius: 50%;
+    box-shadow: 0 0 8px #38bdf8;
+  }
+
+  .events-page .hero-title {
+    font-size: 21px;
+    font-weight: 800;
+    letter-spacing: -.6px;
+    margin-bottom: 6px;
+  }
+
+  .events-page .hero-description {
+    color: #9eb2c9;
+    font-size: 11.5px;
+    margin-bottom: 0;
+  }
+
+  .events-page .hero-counter {
+    min-width: 120px;
+    padding: 15px 20px;
+    border: 1px solid rgba(148, 194, 232, .15);
+    border-radius: 13px;
+    background: rgba(255, 255, 255, .04);
+    backdrop-filter: blur(8px);
+  }
+
+  .events-page .hero-counter-label {
+    font-size: 9px;
+    color: #92abc5;
+    font-weight: 800;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    margin-bottom: 5px;
+  }
+
+  .events-page .hero-counter-number {
+    font-family: "Space Grotesk", sans-serif;
+    font-size: 30px;
+    line-height: 1;
+    font-weight: 700;
+    color: #f8fafc;
+  }
+
+  .events-page .hero-counter-number small {
+    font-size: 12px;
+    color: #7dd3fc;
+    font-weight: 600;
+    margin-left: 4px;
+  }
+
+  /* FILTER PANEL */
+  .events-page .filter-panel {
+    background: #fff;
+    border: 1px solid var(--ev-border);
+    border-radius: 17px;
+    overflow: hidden;
+    margin-bottom: 23px;
+    box-shadow: 0 4px 15px rgba(20, 35, 60, .025);
+  }
+
+  .events-page .filter-header {
+    padding: 17px 21px;
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    border-bottom: 1px solid #edf1f6;
+    background: linear-gradient(110deg, #fff, #fbfdff);
+  }
+
+  .events-page .filter-icon {
+    width: 35px;
+    height: 35px;
+    background: #eff6ff;
+    color: #3b82f6;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .events-page .filter-icon svg {
+    width: 17px;
+    height: 17px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .events-page .filter-title {
+    font-size: 13px;
+    font-weight: 800;
+    color: #26364d;
+    margin-bottom: 3px;
+  }
+
+  .events-page .filter-subtitle {
+    color: #94a3b8;
+    font-size: 10.5px;
+  }
+
+  .events-page .filter-body {
+    padding: 21px;
+  }
+
+  .events-page .filter-body .form-label {
+    color: #66768c;
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: .7px;
+    margin-bottom: 8px;
+  }
+
+  .events-page .form-select,
+  .events-page .form-control {
+    height: 43px;
+    border-radius: 10px;
+    border: 1px solid #e1e8f0;
+    background-color: #fbfcfe;
+    font-size: 12px;
+    color: #34445b;
+    padding: 10px 12px;
+    box-shadow: none;
+  }
+
+  .events-page .form-select:focus,
+  .events-page .form-control:focus {
+    border-color: #93c5fd;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, .08);
+    background: white;
+  }
+
+  .events-page .filter-actions {
+    display: flex;
+    gap: 9px;
+  }
+
+  .events-page .filter-btn {
+    height: 43px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    font-size: 11px;
+    font-weight: 700;
+    border-radius: 10px;
+    padding: 0 17px;
+    transition: .2s ease;
+  }
+
+  .events-page .filter-btn svg {
+    width: 15px;
+    height: 15px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .events-page .filter-submit {
+    color: white;
+    background: linear-gradient(135deg, #0ea5e9, #2563eb);
+    border: none;
+    flex: 1;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, .14);
+  }
+
+  .events-page .filter-submit:hover {
+    color: white;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(37, 99, 235, .2);
+  }
+
+  .events-page .filter-reset {
+    background: #fff;
+    border: 1px solid #e1e8f0;
+    color: #64748b;
+    text-decoration: none;
+  }
+
+  .events-page .filter-reset:hover {
+    background: #f8fafc;
+    color: #334155;
+    border-color: #cbd5e1;
+  }
+
+  /* EVENT LOG */
+  .events-page .log-panel {
+    background: #fff;
+    border: 1px solid var(--ev-border);
+    border-radius: 17px;
+    overflow: hidden;
+    box-shadow: 0 4px 18px rgba(20, 35, 60, .025);
+  }
+
+  .events-page .log-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 17px 21px;
+    border-bottom: 1px solid #edf1f6;
+    background: linear-gradient(110deg, #fff, #fbfdff);
+  }
+
+  .events-page .log-heading-left {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+  }
+
+  .events-page .log-icon {
+    width: 35px;
+    height: 35px;
+    background: #f1f5f9;
+    color: #64748b;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .events-page .log-icon svg {
+    width: 17px;
+    height: 17px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .events-page .log-title {
+    font-size: 13px;
+    font-weight: 800;
+    color: #26364d;
+    margin-bottom: 3px;
+  }
+
+  .events-page .log-subtitle {
+    color: #94a3b8;
+    font-size: 10.5px;
+  }
+
+  .events-page .total-badge {
+    background: #eff6ff;
+    color: #2563eb;
+    border: 1px solid #dbeafe;
+    padding: 7px 11px;
+    border-radius: 8px;
+    font-size: 10px;
+    font-weight: 800;
+  }
+
+  /* TABLE */
+  .events-page .events-table {
+    margin-bottom: 0;
+    vertical-align: middle;
+    min-width: 1000px;
+  }
+
+  .events-page .events-table thead th {
+    padding: 13px 14px;
+    background: #f8fafc;
+    color: #8493a8;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: .8px;
+    text-transform: uppercase;
+    white-space: nowrap;
+    border-bottom: 1px solid #edf1f6;
+  }
+
+  .events-page .events-table tbody td {
+    padding: 13px 14px;
+    border-bottom: 1px solid #f0f3f7;
+    color: #405168;
+    font-size: 11px;
+  }
+
+  .events-page .events-table tbody tr {
+    transition: background .2s ease;
+  }
+
+  .events-page .events-table tbody tr:hover {
+    background: #f8fbff;
+  }
+
+  .events-page .events-table tbody tr:last-child td {
+    border-bottom: none;
+  }
+
+  .events-page .event-id {
+    color: #93a2b6;
+    font-family: "Space Grotesk", sans-serif;
+    font-weight: 600;
+    font-size: 10px;
+  }
+
+  /* SNAPSHOT */
+  .events-page .snapshot-link {
+    display: block;
+    width: fit-content;
+    text-decoration: none;
+  }
+
+  .events-page .snapshot-img {
+    width: 94px;
+    height: 61px;
+    object-fit: cover;
+    border-radius: 9px;
+    border: 1px solid #e5eaf1;
+    background: #f1f5f9;
+    display: block;
+    transition: .2s ease;
+  }
+
+  .events-page .snapshot-img:hover {
+    transform: scale(1.05);
+    box-shadow: 0 5px 15px rgba(15, 23, 42, .12);
+  }
+
+  .events-page .snapshot-placeholder {
+    width: 94px;
+    height: 61px;
+    background: #f4f7fb;
+    border: 1px dashed #dce4ed;
+    border-radius: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #9aabbd;
+  }
+
+  .events-page .snapshot-placeholder svg {
+    width: 21px;
+    height: 21px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.6;
+  }
+
+  /* EVENT TYPE */
+  .events-page .type-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: #35465b;
+    line-height: 1.5;
+    min-width: 110px;
+  }
+
+  /* SEVERITY */
+  .events-page .severity {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 9px;
+    border-radius: 7px;
+    font-size: 9px;
+    font-weight: 800;
+    white-space: nowrap;
+  }
+
+  .events-page .severity .dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+
+  .events-page .severity-critical {
+    background: #fff1f2;
+    color: #be123c;
+    border: 1px solid #ffe0e5;
+  }
+
+  .events-page .severity-warning {
+    background: #fffbeb;
+    color: #b45309;
+    border: 1px solid #fef0c7;
+  }
+
+  .events-page .severity-info {
+    background: #eff6ff;
+    color: #0369a1;
+    border: 1px solid #dbeafe;
+  }
+
+  /* DESCRIPTION */
+  .events-page .description-text {
+    color: #526176;
+    line-height: 1.7;
+    min-width: 140px;
+    max-width: 250px;
+  }
+
+  /* VIDEO SOURCE */
+  .events-page .video-source {
+    min-width: 120px;
+    max-width: 180px;
+    color: #526176;
+    line-height: 1.6;
+    overflow-wrap: anywhere;
+  }
+
+  .events-page .video-time {
+    display: inline-block;
+    color: #2563eb;
+    background: #eff6ff;
+    border: 1px solid #dbeafe;
+    padding: 4px 7px;
+    border-radius: 6px;
+    font-size: 9px;
+    font-weight: 700;
+    margin-top: 4px;
+  }
+
+  /* TIMESTAMP */
+  .events-page .time-cell {
+    color: #8998ac;
+    font-size: 10px;
+    white-space: nowrap;
+    min-width: 120px;
+  }
+
+  /* TELEGRAM STATUS */
+  .events-page .telegram-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border-radius: 7px;
+    padding: 7px 9px;
+    font-size: 9px;
+    font-weight: 800;
+    white-space: nowrap;
+  }
+
+  .events-page .telegram-status .dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+
+  .events-page .delivered {
+    background: #ecfdf5;
+    color: #047857;
+    border: 1px solid #d1fae5;
+  }
+
+  .events-page .skipped {
+    background: #f1f5f9;
+    color: #64748b;
+    border: 1px solid #e2e8f0;
+  }
+
+  /* EMPTY STATE */
+  .events-page .empty-state {
+    text-align: center;
+    padding: 50px 20px !important;
+  }
+
+  .events-page .empty-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 15px;
+    background: #f1f5f9;
+    color: #9aabbd;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 13px;
+  }
+
+  .events-page .empty-icon svg {
+    width: 23px;
+    height: 23px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.6;
+  }
+
+  .events-page .empty-title {
+    color: #43546a;
+    font-size: 12px;
+    font-weight: 800;
+    margin-bottom: 5px;
+  }
+
+  .events-page .empty-description {
+    color: #94a3b8;
+    font-size: 11px;
+  }
+
+  /* RESPONSIVE */
+  @media (max-width: 767px) {
+    .events-page .page-title {
+      font-size: 23px;
+    }
+
+    .events-page .events-hero {
+      padding: 21px;
+    }
+
+    .events-page .hero-title {
+      font-size: 18px;
+    }
+
+    .events-page .hero-counter {
+      margin-top: 18px;
+      width: fit-content;
+    }
+
+    .events-page .filter-body {
+      padding: 16px;
+    }
+
+    .events-page .filter-actions {
+      margin-top: 3px;
+    }
+
+    .events-page .log-header {
+      padding: 15px;
+    }
+  }
+</style>
+
+<div class="events-page">
+
+  <!-- PAGE HEADING -->
+  <div class="events-heading">
+    <div class="eyebrow">Security Center / Activity Records</div>
+    <h4 class="page-title">Security Event History</h4>
+    <p class="page-subtitle mb-0">
+      Review, filter, and investigate recorded entrance security events.
+    </p>
+  </div>
+
+  <!-- HERO BANNER -->
+  <div class="events-hero">
+    <div class="hero-inner">
+      <div class="row align-items-center">
+        <div class="col-md-8">
+          <div class="hero-label">
+            <span></span>
+            INCIDENT MONITORING
+          </div>
+
+          <h3 class="hero-title">
+            Every event. <span style="color: #67e8f9">Every detail.</span>
+          </h3>
+
+          <p class="hero-description">
+            Explore recorded incidents, review snapshots, and check notification history.
+          </p>
+        </div>
+
+        <div class="col-md-4 d-md-flex justify-content-md-end">
+          <div class="hero-counter">
+            <div class="hero-counter-label">Matching Records</div>
+            <div class="hero-counter-number">
+              {{ events|length }} <small>events</small>
             </div>
-            <div class="col-md-4">
-                <label class="form-label small fw-semibold">Recorded Date</label>
-                <input type="date" name="date" class="form-control" value="{{ selected_date }}">
-            </div>
-            <div class="col-md-4 d-flex gap-2">
-                <button type="submit" class="btn btn-primary w-100">Filter</button>
-                <a href="{{ url_for('events') }}" class="btn btn-outline-secondary">Reset</a>
-            </div>
-        </form>
+          </div>
+        </div>
+      </div>
     </div>
+  </div>
+
+  <!-- FILTER PANEL -->
+  <div class="filter-panel">
+
+    <div class="filter-header">
+      <div class="filter-icon">
+        <svg viewBox="0 0 24 24">
+          <path d="M4 5h16M7 12h10M10 19h4"/>
+          <circle cx="8" cy="5" r="2"/>
+          <circle cx="15" cy="12" r="2"/>
+          <circle cx="12" cy="19" r="2"/>
+        </svg>
+      </div>
+
+      <div>
+        <div class="filter-title">Filter Event History</div>
+        <div class="filter-subtitle">
+          Narrow down records by event category or date
+        </div>
+      </div>
+    </div>
+
+    <div class="filter-body">
+      <form method="GET" class="row g-3 align-items-end">
+
+        <div class="col-lg-4 col-md-5">
+          <label class="form-label">Event Type</label>
+          <select name="event_type" class="form-select">
+            {% for opt_val, opt_label in [
+                ('ALL', 'All Events'),
+                ('Unknown Person', 'Unknown Person'),
+                ('Loitering', 'Loitering'),
+                ('Package Detected', 'Package Detected'),
+                ('Vehicle Detected', 'Vehicle Detected')
+            ] %}
+            <option value="{{ opt_val }}" {{ 'selected' if selected_type == opt_val else '' }}>{{ opt_label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-lg-4 col-md-4">
+          <label class="form-label">Recorded Date</label>
+          <input type="date" name="date" class="form-control" value="{{ selected_date }}">
+        </div>
+
+        <div class="col-lg-4 col-md-3">
+          <div class="filter-actions">
+            <button type="submit" class="filter-btn filter-submit">
+              <svg viewBox="0 0 24 24">
+                <circle cx="11" cy="11" r="7"/>
+                <path d="m16 16 4 4"/>
+              </svg>
+              Filter
+            </button>
+
+            <a href="{{ url_for('events') }}" class="filter-btn filter-reset">
+              Reset
+            </a>
+          </div>
+        </div>
+
+      </form>
+    </div>
+  </div>
+
+  <!-- EVENT LOG -->
+  <div class="log-panel">
+
+    <div class="log-header">
+      <div class="log-heading-left">
+        <div class="log-icon">
+          <svg viewBox="0 0 24 24">
+            <path d="M8 4h8M8 8h8M8 12h5"/>
+            <rect x="4" y="2" width="16" height="20" rx="2"/>
+          </svg>
+        </div>
+
+        <div>
+          <div class="log-title">Event Log</div>
+          <div class="log-subtitle">
+            Security detection records and notification details
+          </div>
+        </div>
+      </div>
+
+      <span class="total-badge">{{ events|length }} Records</span>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table events-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Snapshot</th>
+            <th>Type</th>
+            <th>Severity</th>
+            <th>Description</th>
+            <th>Source Video</th>
+            <th>Logged At</th>
+            <th>Telegram</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {% for ev in events %}
+          <tr>
+
+            <!-- ID -->
+            <td>
+              <span class="event-id">#{{ ev.id }}</span>
+            </td>
+
+            <!-- SNAPSHOT -->
+            <td>
+              {% if ev.snapshot_path %}
+              <a href="{{ url_for('serve_snapshot', filename=ev.snapshot_path) }}" target="_blank" class="snapshot-link">
+                <img
+                  src="{{ url_for('serve_snapshot', filename=ev.snapshot_path) }}"
+                  class="snapshot-img"
+                  alt="Alert Snapshot"
+                >
+              </a>
+              {% else %}
+              <div class="snapshot-placeholder">
+                <svg viewBox="0 0 24 24">
+                  <rect x="3" y="5" width="18" height="14" rx="2"/>
+                  <circle cx="8.5" cy="10" r="1.5"/>
+                  <path d="m21 15-5-5L5 17"/>
+                </svg>
+              </div>
+              {% endif %}
+            </td>
+
+            <!-- EVENT TYPE -->
+            <td>
+              <div class="type-label">{{ ev.event_type }}</div>
+            </td>
+
+            <!-- SEVERITY -->
+            <td>
+              {% if ev.severity == 'Critical' %}
+                <span class="severity severity-critical">
+                  <span class="dot"></span>
+                  {{ ev.severity }}
+                </span>
+              {% elif ev.severity == 'Warning' %}
+                <span class="severity severity-warning">
+                  <span class="dot"></span>
+                  {{ ev.severity }}
+                </span>
+              {% else %}
+                <span class="severity severity-info">
+                  <span class="dot"></span>
+                  {{ ev.severity }}
+                </span>
+              {% endif %}
+            </td>
+
+            <!-- DESCRIPTION -->
+            <td>
+              <div class="description-text">{{ ev.description }}</div>
+            </td>
+
+            <!-- SOURCE VIDEO -->
+            <td>
+              <div class="video-source">
+                {{ ev.video_filename or 'N/A' }}
+                <div class="video-time">{{ ev.video_timestamp }}s</div>
+              </div>
+            </td>
+
+            <!-- LOGGED TIME -->
+            <td>
+              <div class="time-cell">{{ ev.event_time }}</div>
+            </td>
+
+            <!-- TELEGRAM -->
+            <td>
+              {% if ev.telegram_sent %}
+                <span class="telegram-status delivered">
+                  <span class="dot"></span>
+                  Delivered
+                </span>
+              {% else %}
+                <span class="telegram-status skipped">
+                  <span class="dot"></span>
+                  Skipped
+                </span>
+              {% endif %}
+            </td>
+
+          </tr>
+
+          {% else %}
+          <tr>
+            <td colspan="8" class="empty-state">
+              <div class="empty-icon">
+                <svg viewBox="0 0 24 24">
+                  <path d="M8 4h8M8 8h8M8 12h5"/>
+                  <rect x="4" y="2" width="16" height="20" rx="2"/>
+                </svg>
+              </div>
+
+              <div class="empty-title">No matching security events</div>
+              <div class="empty-description">
+                Try changing the event type or date to find records.
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
 </div>
 
-<div class="card shadow-sm">
-    <div class="card-header bg-white fw-bold">Event Log ({{ events|length }})</div>
-    <div class="card-body table-responsive">
-        <table class="table table-bordered align-middle mb-0">
-            <thead class="table-light">
-                <tr>
-                    <th>ID</th>
-                    <th>Snapshot</th>
-                    <th>Type</th>
-                    <th>Severity</th>
-                    <th>Description</th>
-                    <th>Source Video</th>
-                    <th>Logged At</th>
-                    <th>Telegram</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for ev in events %}
-                <tr>
-                    <td>#{{ ev.id }}</td>
-                    <td>
-                        {% if ev.snapshot_path %}
-                        <a href="{{ url_for('serve_snapshot', filename=ev.snapshot_path) }}" target="_blank">
-                            <img src="{{ url_for('serve_snapshot', filename=ev.snapshot_path) }}" class="rounded" style="width: 110px; height: 65px; object-fit: cover;">
-                        </a>
-                        {% endif %}
-                    </td>
-                    <td class="fw-semibold">{{ ev.event_type }}</td>
-                    <td>
-                        {% if ev.severity == 'Critical' %}
-                            <span class="badge bg-danger">{{ ev.severity }}</span>
-                        {% elif ev.severity == 'Warning' %}
-                            <span class="badge bg-warning text-dark">{{ ev.severity }}</span>
-                        {% else %}
-                            <span class="badge bg-info text-dark">{{ ev.severity }}</span>
-                        {% endif %}
-                    </td>
-                    <td>{{ ev.description }}</td>
-                    <td>{{ ev.video_filename or 'N/A' }} ({{ ev.video_timestamp }}s)</td>
-                    <td class="small">{{ ev.event_time }}</td>
-                    <td>
-                        {% if ev.telegram_sent %}
-                            <span class="badge bg-success">Delivered</span>
-                        {% else %}
-                            <span class="badge bg-secondary">Skipped</span>
-                        {% endif %}
-                    </td>
-                </tr>
-                {% else %}
-                <tr><td colspan="8" class="text-center text-muted py-4">No matching security events found.</td></tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</div>
 {% endblock %}

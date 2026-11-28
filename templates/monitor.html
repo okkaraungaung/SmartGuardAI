@@ -1,81 +1,868 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="card shadow-sm mb-4">
-    <div class="card-header bg-white fw-bold d-flex justify-content-between align-items-center">
-        <span>Smartphone IP Camera Connection</span>
-        <span class="badge {{ 'bg-success' if is_running else 'bg-secondary' }}">{{ status_message }}</span>
+
+<style>
+
+.monitor-page {
+    color: #e6f2ff;
+    padding-bottom: 24px;
+}
+
+.monitor-page * {
+    box-sizing: border-box;
+}
+
+/* Header */
+.monitor-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 22px;
+    gap: 15px;
+}
+
+.monitor-heading h2 {
+    font-size: 28px;
+    font-weight: 800;
+    letter-spacing: -1px;
+    color: #f1f7ff;
+    margin: 0;
+}
+
+.monitor-heading p {
+    font-size: 13px;
+    color: #8199b4;
+    margin: 5px 0 0;
+}
+
+.monitor-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid #244b68;
+    background: #0d2033;
+    color: #73dcfa;
+    border-radius: 30px;
+    padding: 8px 13px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+}
+
+.monitor-label .pulse {
+    width: 8px;
+    height: 8px;
+    background: #22e6a8;
+    border-radius: 50%;
+    box-shadow: 0 0 12px #22e6a8;
+}
+
+/* Main connection panel */
+.connection-panel {
+    position: relative;
+    overflow: hidden;
+    background:
+        radial-gradient(circle at 90% 10%, #123c5a 0, transparent 38%),
+        linear-gradient(135deg, #071322, #0c1e32 55%, #102940);
+    border: 1px solid #203e59;
+    border-radius: 22px;
+    margin-bottom: 22px;
+    box-shadow: 0 18px 40px rgba(0,0,0,.2);
+}
+
+.connection-panel::after {
+    content: "";
+    position: absolute;
+    right: -70px;
+    bottom: -120px;
+    width: 300px;
+    height: 300px;
+    border: 1px solid #2c6b91;
+    border-radius: 50%;
+    opacity: .15;
+    pointer-events: none;
+}
+
+.connection-panel-inner {
+    padding: 24px;
+    position: relative;
+    z-index: 1;
+}
+
+.connection-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 22px;
+    gap: 15px;
+}
+
+.connection-title {
+    display: flex;
+    gap: 13px;
+    align-items: center;
+}
+
+.connection-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+    background: #143651;
+    border: 1px solid #275879;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 23px;
+}
+
+.connection-title h4 {
+    color: #edf7ff;
+    font-size: 17px;
+    font-weight: 700;
+    margin: 0;
+}
+
+.connection-title p {
+    color: #829db8;
+    font-size: 12px;
+    margin: 5px 0 0;
+}
+
+.connection-status {
+    border: 1px solid #234761;
+    background: #102a40;
+    color: #8bcdf1;
+    padding: 7px 12px;
+    border-radius: 9px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+/* Form */
+.camera-form {
+    display: grid;
+    grid-template-columns: 1.1fr 2fr 1fr 1fr;
+    gap: 15px;
+    align-items: end;
+}
+
+.camera-form .form-label {
+    color: #91a9c1;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .5px;
+    margin-bottom: 8px;
+}
+
+.camera-form .form-control,
+.camera-form .form-select {
+    background-color: #091727 !important;
+    color: #dcecff !important;
+    border: 1px solid #25435e !important;
+    border-radius: 10px;
+    min-height: 43px;
+    font-size: 13px;
+    box-shadow: none !important;
+}
+
+.camera-form .form-control:focus,
+.camera-form .form-select:focus {
+    border-color: #39c8f5 !important;
+    box-shadow: 0 0 0 3px #39c8f520 !important;
+}
+
+.camera-form .form-select option {
+    background: #091727;
+    color: #dcecff;
+}
+
+.night-mode-box {
+    display: flex;
+    align-items: center;
+    min-height: 43px;
+    background: #0a1b2b;
+    border: 1px solid #23415a;
+    border-radius: 10px;
+    padding: 0 12px;
+}
+
+.night-mode-box .form-check {
+    margin: 0;
+}
+
+.night-mode-box .form-check-input {
+    background-color: #1b3048;
+    border-color: #41627f;
+}
+
+.night-mode-box .form-check-input:checked {
+    background-color: #15b8dd;
+    border-color: #15b8dd;
+}
+
+.night-mode-box .form-check-label {
+    color: #bed1e5;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.btn-start-feed {
+    width: 100%;
+    min-height: 43px;
+    background: linear-gradient(135deg, #10b9e7, #1476c5);
+    border: none;
+    border-radius: 10px;
+    color: #041421;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: .4px;
+    transition: .2s;
+}
+
+.btn-start-feed:hover {
+    background: linear-gradient(135deg, #55d8f6, #2997e9);
+    color: #041421;
+    transform: translateY(-1px);
+    box-shadow: 0 7px 20px #18aeea30;
+}
+
+.btn-stop-feed {
+    background: #451e2a;
+    border: 1px solid #833b50;
+    color: #ff92a8;
+    border-radius: 10px;
+    padding: 10px 17px;
+    font-size: 12px;
+    font-weight: 700;
+    transition: .2s;
+}
+
+.btn-stop-feed:hover {
+    background: #672b3d;
+    color: #fff;
+}
+
+.btn-night-toggle {
+    background: #11253a;
+    border: 1px solid #2c4c68;
+    color: #8dddf7;
+    border-radius: 10px;
+    padding: 10px 15px;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.btn-night-toggle:hover {
+    background: #193651;
+    color: #fff;
+}
+
+/* Live monitor layout */
+.monitor-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.8fr) minmax(320px, .85fr);
+    gap: 20px;
+    align-items: start;
+}
+
+.monitor-main-column,
+.monitor-side-column {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+/* Camera screen */
+.camera-screen {
+    overflow: hidden;
+    background: #02060b;
+    border: 1px solid #1e3953;
+    border-radius: 20px;
+    box-shadow: 0 20px 50px #00000040;
+}
+
+.camera-screen-header {
+    background: linear-gradient(90deg, #0b1929, #10253a);
+    padding: 15px 18px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #1b344c;
+}
+
+.camera-screen-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.camera-screen-title h5 {
+    margin: 0;
+    color: #d9e9f9;
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: .4px;
+}
+
+.camera-screen-title small {
+    display: block;
+    color: #758ca7;
+    font-size: 10px;
+    margin-top: 4px;
+}
+
+.camera-live-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #3b1722;
+    border: 1px solid #672a3d;
+    color: #ff6e8b;
+    padding: 5px 10px;
+    border-radius: 7px;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 1px;
+}
+
+.camera-live-tag span {
+    width: 6px;
+    height: 6px;
+    background: #ff476c;
+    border-radius: 50%;
+    animation: livePulse 1.5s infinite;
+}
+
+@keyframes livePulse {
+    0%, 100% { opacity: 1; box-shadow: 0 0 6px #ff476c; }
+    50% { opacity: .4; box-shadow: none; }
+}
+
+.camera-video-container {
+    position: relative;
+    background: #000;
+    min-height: 260px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.camera-video-container img {
+    display: block;
+    width: 100%;
+    height: auto;
+    object-fit: contain;
+}
+
+/* Subtle screen overlay */
+.camera-video-container::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: repeating-linear-gradient(
+        to bottom,
+        transparent 0px,
+        transparent 3px,
+        rgba(0, 0, 0, .06) 4px
+    );
+}
+
+.camera-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    padding: 11px 16px;
+    background: #091524;
+    border-top: 1px solid #1a3046;
+    color: #657f99;
+    font-size: 10px;
+    letter-spacing: .5px;
+}
+
+.camera-footer .camera-ready {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #43d8b0;
+}
+
+.camera-ready i {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #43d8b0;
+}
+
+/* Side panels */
+.monitor-panel {
+    background: linear-gradient(145deg, #0c1a2a, #0e1e30);
+    border: 1px solid #1c334a;
+    border-radius: 18px;
+    overflow: hidden;
+    box-shadow: 0 12px 30px #0000001c;
+}
+
+.monitor-panel-header {
+    padding: 15px 17px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #0e1d2e;
+    border-bottom: 1px solid #1b3046;
+}
+
+.monitor-panel-header h5 {
+    color: #dcecff;
+    font-size: 13px;
+    font-weight: 800;
+    margin: 0;
+}
+
+.monitor-panel-header small {
+    color: #7189a3;
+    font-size: 10px;
+}
+
+.panel-heading-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.panel-heading-icon {
+    width: 32px;
+    height: 32px;
+    background: #142e45;
+    border: 1px solid #264b67;
+    border-radius: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #62d4f5;
+    font-size: 15px;
+}
+
+/* Visitor table */
+.visitor-table-wrap {
+    padding: 5px 12px 12px;
+}
+
+.visitor-table {
+    margin: 0 !important;
+    color: #b8cce0 !important;
+    font-size: 12px;
+    --bs-table-bg: transparent;
+    --bs-table-color: #b8cce0;
+    --bs-table-border-color: #1a3045;
+    --bs-table-hover-bg: #11253a;
+}
+
+.visitor-table thead th {
+    color: #7089a3 !important;
+    background: #091625 !important;
+    border-bottom: 1px solid #20374e !important;
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: .8px;
+    padding: 12px 10px;
+}
+
+.visitor-table tbody td {
+    padding: 12px 10px;
+    vertical-align: middle;
+    border-color: #1a3045 !important;
+    background: transparent !important;
+}
+
+.visitor-table tbody tr:hover td {
+    background: #102339 !important;
+}
+
+.visitor-id {
+    color: #60d8f6;
+    font-weight: 800;
+    font-family: monospace;
+}
+
+.visitor-name {
+    display: inline-block;
+    border-radius: 6px;
+    padding: 4px 8px;
+    font-size: 10px;
+    font-weight: 700;
+}
+
+.visitor-name.unknown {
+    background: #451e2b;
+    border: 1px solid #77354b;
+    color: #ff91a9;
+}
+
+.visitor-name.known {
+    background: #12372f;
+    border: 1px solid #24594b;
+    color: #68e0b5;
+}
+
+.visitor-dwell {
+    color: #c3d4e7;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.visitor-empty {
+    color: #6e849e;
+    text-align: center;
+    padding: 24px 10px !important;
+}
+
+/* Telegram events */
+.telegram-events-body {
+    padding: 15px;
+    max-height: 300px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #28445e #0c1a2a;
+}
+
+.telegram-events-body::-webkit-scrollbar {
+    width: 5px;
+}
+
+.telegram-events-body::-webkit-scrollbar-thumb {
+    background: #28445e;
+    border-radius: 10px;
+}
+
+.telegram-waiting {
+    padding: 25px 10px;
+    text-align: center;
+    color: #7088a2;
+    font-size: 12px;
+}
+
+.telegram-event {
+    position: relative;
+    padding: 12px 12px 12px 15px;
+    margin-bottom: 10px;
+    background: #0a1726;
+    border: 1px solid #1a3046;
+    border-radius: 11px;
+}
+
+.telegram-event:last-child {
+    margin-bottom: 0;
+}
+
+.telegram-event::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 12px;
+    bottom: 12px;
+    width: 3px;
+    border-radius: 4px;
+    background: #16b9df;
+}
+
+.telegram-event-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8px;
+    margin-bottom: 7px;
+}
+
+.telegram-event-title {
+    color: #d8e9f8;
+    font-size: 11px;
+    font-weight: 800;
+}
+
+.telegram-event-status {
+    font-size: 9px;
+    font-weight: 700;
+    border-radius: 5px;
+    padding: 3px 7px;
+    white-space: nowrap;
+}
+
+.telegram-event-status.sent {
+    background: #12352e;
+    border: 1px solid #245749;
+    color: #68dcb4;
+}
+
+.telegram-event-status.logged {
+    background: #1b2b3d;
+    border: 1px solid #30455b;
+    color: #90a6bd;
+}
+
+.telegram-event-description {
+    color: #849bb4;
+    font-size: 11px;
+    line-height: 1.6;
+}
+
+/* No content */
+.panel-empty {
+    color: #6f859f;
+    text-align: center;
+    padding: 26px 10px;
+    font-size: 12px;
+}
+
+/* Responsive */
+@media (max-width: 1100px) {
+    .camera-form {
+        grid-template-columns: 1fr 1.5fr;
+    }
+
+    .monitor-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .monitor-side-column {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        align-items: start;
+    }
+}
+
+@media (max-width: 768px) {
+    .monitor-heading h2 {
+        font-size: 23px;
+    }
+
+    .connection-panel-inner {
+        padding: 17px;
+    }
+
+    .camera-form {
+        grid-template-columns: 1fr;
+    }
+
+    .connection-top {
+        flex-direction: column;
+    }
+
+    .monitor-side-column {
+        grid-template-columns: 1fr;
+    }
+
+    .camera-screen-header {
+        padding: 12px;
+    }
+
+    .camera-video-container {
+        min-height: 180px;
+    }
+
+    .camera-footer {
+        flex-wrap: wrap;
+    }
+}
+</style>
+
+<div class="monitor-page">
+
+    <!-- Page Header -->
+    <div class="monitor-heading">
+        <div>
+            <h2>Live Monitor</h2>
+            <p>Real-time entrance surveillance and visitor intelligence.</p>
+        </div>
+
+        <div class="monitor-label">
+            <span class="pulse"></span>
+            SMARTGUARD LIVE
+        </div>
     </div>
-    <div class="card-body">
-        {% if not is_running %}
-        <form method="POST" action="{{ url_for('start_monitor') }}" class="row g-3 align-items-end">
-            <div class="col-md-3">
-                <label class="form-label small fw-semibold">Camera Source</label>
-                <select name="source_type" id="sourceType" class="form-select" onchange="toggleUrlInput()">
-                    <option value="ip_cam" selected>Smartphone IP Camera (Wi-Fi)</option>
-                    <option value="webcam">MacBook Built-in Webcam (Fallback)</option>
-                </select>
-            </div>
-            <div class="col-md-5" id="urlInputGroup">
-                <label class="form-label small fw-semibold">Phone Stream URL (IP Webcam / DroidCam)</label>
-                <input type="text" name="ip_camera_url" class="form-control" value="{{ settings.ip_camera_url }}" placeholder="http://192.168.1.34:8080/video" required>
-            </div>
-            <div class="col-md-2">
-                <div class="form-check mb-2">
-                    <input class="form-check-input" type="checkbox" name="force_enhance" id="forceEnhance" {{ 'checked' if force_enhance else '' }}>
-                    <label class="form-check-label" for="forceEnhance">Night Mode</label>
+
+    <!-- Camera Connection Panel -->
+    <div class="connection-panel">
+        <div class="connection-panel-inner">
+
+            <div class="connection-top">
+                <div class="connection-title">
+                    <div class="connection-icon">⌁</div>
+                    <div>
+                        <h4>Camera Connection</h4>
+                        <p>Configure your surveillance source and enhancement settings.</p>
+                    </div>
+                </div>
+
+                <div class="connection-status">
+                    {{ status_message }}
                 </div>
             </div>
-            <div class="col-md-2 d-grid">
-                <button type="submit" class="btn btn-success">Start Live Feed</button>
-            </div>
-        </form>
-        {% else %}
-        <div class="d-flex gap-2 align-items-center">
-            <form method="POST" action="{{ url_for('stop_monitor') }}">
-                <button type="submit" class="btn btn-danger">Stop Camera Stream</button>
+
+            {% if not is_running %}
+            <form method="POST" action="{{ url_for('start_monitor') }}" class="camera-form">
+
+                <div>
+                    <label class="form-label">CAMERA SOURCE</label>
+                    <select name="source_type" id="sourceType" class="form-select" onchange="toggleUrlInput()">
+                        <option value="ip_cam" selected>Smartphone IP Camera (Wi-Fi)</option>
+                        <option value="webcam">MacBook Built-in Webcam (Fallback)</option>
+                    </select>
+                </div>
+
+                <div id="urlInputGroup">
+                    <label class="form-label">PHONE STREAM URL</label>
+                    <input type="text" name="ip_camera_url" class="form-control"
+                           value="{{ settings.ip_camera_url }}"
+                           placeholder="http://192.168.1.34:8080/video" required>
+                </div>
+
+                <div>
+                    <label class="form-label">IMAGE ENHANCEMENT</label>
+                    <div class="night-mode-box">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="force_enhance"
+                                   id="forceEnhance" {{ 'checked' if force_enhance else '' }}>
+                            <label class="form-check-label" for="forceEnhance">Night Mode</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="form-label">&nbsp;</label>
+                    <button type="submit" class="btn btn-start-feed">
+                        ▶ START LIVE FEED
+                    </button>
+                </div>
+
             </form>
-            <button type="button" id="nightToggleBtn" class="btn btn-outline-dark" onclick="toggleNightMode()">
-                Night Enhancement: {{ 'ON' if force_enhance else 'AUTO' }}
-            </button>
-        </div>
-        {% endif %}
-    </div>
-</div>
 
-{% if is_running %}
-<div class="row g-4">
-    <div class="col-lg-8">
-        <div class="card shadow-sm">
-            <div class="card-header bg-dark text-white fw-bold">Live Entrance CCTV Stream</div>
-            <div class="card-body p-0 bg-black text-center">
-                <img src="{{ url_for('video_feed') }}" class="img-fluid w-100" alt="Live IP Camera Stream">
+            {% else %}
+
+            <div class="d-flex flex-wrap gap-2 align-items-center">
+                <form method="POST" action="{{ url_for('stop_monitor') }}">
+                    <button type="submit" class="btn btn-stop-feed">
+                        ■ Stop Camera Stream
+                    </button>
+                </form>
+
+                <button type="button" id="nightToggleBtn" class="btn btn-night-toggle"
+                        onclick="toggleNightMode()">
+                    Night Enhancement: {{ 'ON' if force_enhance else 'AUTO' }}
+                </button>
             </div>
+
+            {% endif %}
+
         </div>
     </div>
-    <div class="col-lg-4">
-        <div class="card shadow-sm mb-3">
-            <div class="card-header bg-white fw-bold">Live Tracked Visitors</div>
-            <div class="card-body p-2">
-                <table class="table table-sm mb-0">
-                    <thead>
-                        <tr><th>ID</th><th>Identity</th><th>Dwell</th></tr>
-                    </thead>
-                    <tbody id="liveTracksBody">
-                        <tr><td colspan="3" class="text-muted text-center">Scanning entrance...</td></tr>
-                    </tbody>
-                </table>
+
+    {% if is_running %}
+
+    <!-- Monitoring Grid -->
+    <div class="monitor-grid">
+
+        <!-- Main Camera Column -->
+        <div class="monitor-main-column">
+
+            <div class="camera-screen">
+
+                <div class="camera-screen-header">
+                    <div class="camera-screen-title">
+                        <div>
+                            <h5>ENTRANCE CAMERA</h5>
+                            <small>LIVE VIDEO ANALYSIS · REAL-TIME TRACKING</small>
+                        </div>
+                    </div>
+
+                    <div class="camera-live-tag">
+                        <span></span> LIVE
+                    </div>
+                </div>
+
+                <div class="camera-video-container">
+                    <img src="{{ url_for('video_feed') }}"
+                         class="img-fluid w-100"
+                         alt="Live IP Camera Stream">
+                </div>
+
+                <div class="camera-footer">
+                    <span>SMARTGUARD AI / MONITORING SYSTEM</span>
+                    <span class="camera-ready"><i></i> STREAM CONNECTED</span>
+                </div>
+
             </div>
+
         </div>
 
-        <div class="card shadow-sm">
-            <div class="card-header bg-white fw-bold">Live Telegram Alerts</div>
-            <div class="card-body" id="liveEventsBox" style="max-height: 280px; overflow-y: auto;">
-                <p class="text-muted small mb-0">Waiting for security triggers...</p>
+        <!-- Side Column -->
+        <div class="monitor-side-column">
+
+            <!-- Live Visitor Tracking -->
+            <div class="monitor-panel">
+
+                <div class="monitor-panel-header">
+                    <div class="panel-heading-left">
+                        <div class="panel-heading-icon">◎</div>
+                        <div>
+                            <h5>Live Tracked Visitors</h5>
+                            <small>IDENTITY & DWELL ANALYSIS</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="visitor-table-wrap">
+                    <table class="table table-sm visitor-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Identity</th>
+                                <th>Dwell</th>
+                            </tr>
+                        </thead>
+
+                        <tbody id="liveTracksBody">
+                            <tr>
+                                <td colspan="3" class="visitor-empty">
+                                    Scanning entrance...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
             </div>
+
+            <!-- Telegram Events -->
+            <div class="monitor-panel">
+
+                <div class="monitor-panel-header">
+                    <div class="panel-heading-left">
+                        <div class="panel-heading-icon">⌁</div>
+                        <div>
+                            <h5>Live Telegram Alerts</h5>
+                            <small>SECURITY EVENT FEED</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="telegram-events-body" id="liveEventsBox">
+                    <div class="telegram-waiting">
+                        Waiting for security triggers...
+                    </div>
+                </div>
+
+            </div>
+
         </div>
+
     </div>
+
+    {% endif %}
+
 </div>
-{% endif %}
 
 <script>
 function toggleUrlInput() {
@@ -99,27 +886,33 @@ setInterval(() => {
         .then(r => r.json())
         .then(data => {
             const tbody = document.getElementById("liveTracksBody");
+
             if (data.tracks && data.tracks.length > 0) {
                 tbody.innerHTML = data.tracks.map(t => `
                     <tr>
-                        <td><strong>#${t.track_id}</strong></td>
-                        <td><span class="badge ${t.name === 'Unknown' ? 'bg-danger' : 'bg-success'}">${t.name}</span></td>
-                        <td>${t.dwell_time}s</td>
+                        <td><strong class="visitor-id">#${t.track_id}</strong></td>
+                        <td>
+                            <span class="visitor-name ${t.name === 'Unknown' ? 'unknown' : 'known'}">
+                                ${t.name}
+                            </span>
+                        </td>
+                        <td><span class="visitor-dwell">${t.dwell_time}s</span></td>
                     </tr>
                 `).join("");
             }
 
             const evBox = document.getElementById("liveEventsBox");
+
             if (data.events && data.events.length > 0) {
                 evBox.innerHTML = data.events.map(e => `
-                    <div class="border-bottom pb-2 mb-2">
-                        <div class="d-flex justify-content-between">
-                            <strong class="small">${e.event_type}</strong>
-                            <span class="badge ${e.telegram_sent ? 'bg-success' : 'bg-secondary'}">
+                    <div class="telegram-event">
+                        <div class="telegram-event-top">
+                            <strong class="telegram-event-title">${e.event_type}</strong>
+                            <span class="telegram-event-status ${e.telegram_sent ? 'sent' : 'logged'}">
                                 ${e.telegram_sent ? 'Telegram Sent' : 'Logged'}
                             </span>
                         </div>
-                        <div class="small text-muted">${e.description}</div>
+                        <div class="telegram-event-description">${e.description}</div>
                     </div>
                 `).join("");
             }
@@ -127,5 +920,5 @@ setInterval(() => {
 }, 2000);
 {% endif %}
 </script>
+
 {% endblock %}
-EOF

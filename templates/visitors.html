@@ -1,196 +1,668 @@
-{% extends "base.html" %} {% block content %}
-<div class="row g-4 mb-4">
-  <!-- Option A: Apple-Style 360° Face ID Radial Scanner -->
-  <div class="col-lg-7">
-    <div class="card shadow-sm h-100 border-primary">
-      <div
-        class="card-header bg-primary text-white fw-bold d-flex justify-content-between align-items-center"
-      >
-        <span>Face ID Enrollment (360° Head Circle)</span>
-        <span class="badge bg-light text-primary" id="stepCounter">0%</span>
-      </div>
-      <div class="card-body">
-        <div class="row g-2 mb-3">
-          <div class="col-md-5">
-            <input
-              type="text"
-              id="scanName"
-              class="form-control"
-              placeholder="Enter Name (e.g., Okkar)"
-            />
+{% extends "base.html" %}
+{% block content %}
+
+<style>
+  .face-page {
+    --bg: #f4f7fb;
+    --card: #ffffff;
+    --text: #19263b;
+    --muted: #8290a5;
+    --blue: #3478f6;
+    --cyan: #38c9ed;
+    --border: #e6edf5;
+    color: var(--text);
+    padding-bottom: 25px;
+  }
+
+  .face-page .card {
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    background: var(--card);
+    overflow: hidden;
+    box-shadow: 0 8px 28px rgba(22, 44, 75, 0.05) !important;
+  }
+
+  .face-header {
+    margin-bottom: 24px;
+  }
+
+  .face-eyebrow {
+    font-size: 10px;
+    font-weight: 800;
+    color: #3478f6;
+    letter-spacing: 2.2px;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  .face-title {
+    font-size: 26px;
+    font-weight: 800;
+    letter-spacing: -0.7px;
+    margin-bottom: 6px;
+  }
+
+  .face-description {
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .face-page .card-header {
+    background: white;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+    padding: 17px 20px;
+    font-size: 13px;
+    font-weight: 750;
+  }
+
+  .face-page .card-body {
+    padding: 20px;
+  }
+
+  .face-section-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .face-number {
+    display: inline-flex;
+    width: 28px;
+    height: 28px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9px;
+    background: #edf4ff;
+    color: #3478f6;
+    font-size: 11px;
+    font-weight: 800;
+  }
+
+  /* Face scanner card */
+  .face-scanner-card {
+    border-color: #dce7f8 !important;
+  }
+
+  .face-scanner-card .card-header {
+    background: linear-gradient(135deg, #101d35, #172b4b) !important;
+    color: white !important;
+    border-bottom: none;
+  }
+
+  .face-scanner-card .face-number {
+    background: rgba(75, 143, 255, 0.17);
+    color: #76b6ff;
+  }
+
+  .face-progress-badge {
+    background: rgba(55, 207, 240, 0.14) !important;
+    border: 1px solid rgba(67, 211, 244, 0.2);
+    color: #70e4ff !important;
+    padding: 7px 12px !important;
+    border-radius: 20px !important;
+    font-size: 11px !important;
+    font-weight: 800;
+  }
+
+  .face-input-label {
+    display: block;
+    color: #738199;
+    font-size: 11px;
+    font-weight: 750;
+    margin-bottom: 7px;
+  }
+
+  .face-page .form-control {
+    border: 1px solid #e0e8f1;
+    border-radius: 10px;
+    padding: 11px 13px;
+    font-size: 12px;
+    color: #293951;
+    background: #fff;
+  }
+
+  .face-page .form-control:focus {
+    border-color: #6ca2ff;
+    box-shadow: 0 0 0 3px rgba(52, 120, 246, 0.09);
+  }
+
+  .face-page .btn {
+    border-radius: 10px;
+    padding: 11px 13px;
+    font-size: 11px;
+    font-weight: 750;
+    transition: all 0.2s ease;
+  }
+
+  .face-page .btn-primary {
+    background: linear-gradient(135deg, #4288ff, #2863e9);
+    border: none;
+    box-shadow: 0 5px 14px rgba(52, 120, 246, 0.2);
+  }
+
+  .face-page .btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 20px rgba(52, 120, 246, 0.3);
+  }
+
+  .face-page .btn-outline-primary {
+    border: 1px solid #cbdcf8;
+    color: #3478f6;
+    background: #f7faff;
+  }
+
+  .face-page .btn-outline-primary:hover {
+    background: #edf4ff;
+    color: #2465e8;
+  }
+
+  .face-page .btn-outline-success {
+    border: 1px solid #b8e6d0;
+    color: #219965;
+    background: #f3fcf7;
+  }
+
+  .face-page .btn-outline-success:hover {
+    background: #e8f8ef;
+    color: #168250;
+  }
+
+  .face-page .btn-outline-danger {
+    border: 1px solid #ffd0d0;
+    color: #e05252;
+    background: #fff7f7;
+  }
+
+  .face-page .btn-outline-danger:hover {
+    background: #fff0f0;
+    color: #d63838;
+  }
+
+  /* Scanner area */
+  .face-scanner-stage {
+    background: radial-gradient(circle at center, #1b2b47 0%, #101a2b 65%, #0b1320 100%);
+    border: 1px solid #263a58;
+    border-radius: 18px;
+    min-height: 335px;
+    padding: 22px 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .face-scanner-stage::before {
+    content: "";
+    position: absolute;
+    width: 300px;
+    height: 300px;
+    border-radius: 50%;
+    border: 1px solid rgba(68, 160, 255, 0.08);
+    pointer-events: none;
+  }
+
+  .face-scanner-stage::after {
+    content: "";
+    position: absolute;
+    width: 250px;
+    height: 250px;
+    border-radius: 50%;
+    border: 1px solid rgba(68, 160, 255, 0.07);
+    pointer-events: none;
+  }
+
+  .face-scanner-orbit {
+    position: relative;
+    width: 270px;
+    height: 270px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2;
+  }
+
+  #faceIdDial {
+    position: absolute;
+    inset: 0;
+    width: 270px;
+    height: 270px;
+    pointer-events: none;
+    filter: drop-shadow(0 0 5px rgba(46, 167, 255, 0.12));
+  }
+
+  .face-camera-circle {
+    width: 214px;
+    height: 214px;
+    border-radius: 50%;
+    overflow: hidden;
+    background: #080d16;
+    position: relative;
+    border: 3px solid #263f60;
+    box-shadow:
+      0 0 0 6px rgba(42, 130, 255, 0.07),
+      0 0 25px rgba(27, 139, 255, 0.15);
+  }
+
+  .face-camera-circle video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transform: scaleX(-1);
+  }
+
+  .face-camera-circle::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    border: 1px solid rgba(75, 197, 255, 0.2);
+    pointer-events: none;
+  }
+
+  .face-camera-label {
+    color: #6f8fb9;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 2px;
+    margin-top: 13px;
+    text-transform: uppercase;
+    z-index: 2;
+  }
+
+  .face-instruction-box {
+    background: rgba(27, 44, 69, 0.65);
+    border: 1px solid rgba(83, 132, 190, 0.16);
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-top: 15px;
+    width: 100%;
+    color: #9fb5d0;
+    font-size: 11px;
+    line-height: 1.6;
+    z-index: 2;
+  }
+
+  #scanInstruction {
+    color: #9fb5d0 !important;
+  }
+
+  /* Manual enrollment */
+  .face-manual-card {
+    border-color: #e6edf5 !important;
+  }
+
+  .face-manual-banner {
+    background: linear-gradient(135deg, #f4f8ff, #f9fbff);
+    border: 1px solid #e5edfa;
+    border-radius: 12px;
+    padding: 14px;
+    margin-bottom: 20px;
+    color: #6f829d;
+    font-size: 11px;
+    line-height: 1.6;
+  }
+
+  .face-manual-banner strong {
+    color: #3677ec;
+  }
+
+  .face-upload-hint {
+    color: #91a0b3;
+    font-size: 10px;
+    line-height: 1.6;
+    display: block;
+    margin-top: 8px;
+  }
+
+  .face-upload-button {
+    margin-top: 8px;
+  }
+
+  /* Profiles */
+  .face-profile-section {
+    margin-top: 24px;
+  }
+
+  .face-profile-count {
+    background: #edf4ff;
+    color: #3478f6;
+    padding: 6px 10px;
+    border-radius: 8px;
+    font-size: 11px;
+    font-weight: 800;
+  }
+
+  .face-profile-card {
+    border-radius: 15px !important;
+    border: 1px solid #e8edf4 !important;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .face-profile-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 25px rgba(26, 47, 79, 0.09) !important;
+  }
+
+  .face-profile-image {
+    width: 100%;
+    height: 190px;
+    object-fit: cover;
+    background: #eaf0f7;
+  }
+
+  .face-profile-name {
+    font-size: 14px;
+    font-weight: 800;
+    color: #24344c;
+    margin-bottom: 10px;
+  }
+
+  .face-sample-badge {
+    display: inline-block;
+    background: #e9f8f2 !important;
+    color: #239561 !important;
+    font-size: 10px !important;
+    padding: 7px 10px !important;
+    border-radius: 7px !important;
+    margin-bottom: 11px;
+  }
+
+  .face-profile-date {
+    font-size: 10px;
+    color: #91a0b3;
+    display: block;
+    margin-bottom: 15px;
+  }
+
+  .face-page .btn-sm {
+    padding: 8px 12px;
+    font-size: 10px;
+  }
+
+  .face-empty {
+    color: #99a6b7;
+    font-size: 12px;
+    padding: 25px 10px;
+    text-align: center;
+  }
+
+  @media (max-width: 991px) {
+    .face-scanner-stage {
+      min-height: 310px;
+    }
+  }
+
+  @media (max-width: 576px) {
+    .face-title {
+      font-size: 22px;
+    }
+
+    .face-page .card-body {
+      padding: 15px;
+    }
+
+    .face-page .card-header {
+      padding: 14px;
+    }
+
+    .face-scanner-orbit {
+      transform: scale(0.88);
+      margin: -10px 0;
+    }
+
+    .face-scanner-stage {
+      padding: 15px 8px;
+    }
+
+    .face-profile-image {
+      height: 170px;
+    }
+  }
+</style>
+
+<div class="face-page">
+
+  <!-- Page Heading -->
+  <div class="face-header">
+    <div class="face-eyebrow">SmartGuard AI · Identity System</div>
+    <h2 class="face-title">Face ID Enrollment</h2>
+    <div class="face-description">
+      Register identities, capture multiple angles, and manage recognized profiles.
+    </div>
+  </div>
+
+  <div class="row g-4 mb-4">
+
+    <!-- Option A: Face Scanner -->
+    <div class="col-lg-7">
+      <div class="card face-scanner-card h-100">
+
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <div class="face-section-label">
+            <span class="face-number">01</span>
+            <span>360° Face Recognition Scanner</span>
           </div>
-          <div class="col-md-7 d-flex gap-2">
-            <button
-              type="button"
-              id="startScanBtn"
-              class="btn btn-primary w-100"
-              onclick="startAppleFaceScan()"
-            >
-              Start Face ID Scan
-            </button>
-            <button
-              type="button"
-              id="ipCamScanBtn"
-              class="btn btn-outline-primary w-100"
-              onclick="enrollFromIpCamera()"
-            >
-              From Live IP Cam
-            </button>
-            <button
-              type="button"
-              id="cancelScanBtn"
-              class="btn btn-outline-danger d-none"
-              onclick="cancelFaceIdScan()"
-            >
-              Stop
-            </button>
-          </div>
+          <span class="badge face-progress-badge" id="stepCounter">0%</span>
         </div>
 
-        <!-- Apple Face ID Circular Viewport with 36 Radial SVG Ticks -->
-        <div class="d-flex justify-content-center my-2">
-          <div
-            style="
-              position: relative;
-              width: 270px;
-              height: 270px;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-            "
-          >
-            <svg
-              id="faceIdDial"
-              viewBox="0 0 270 270"
-              style="
-                position: absolute;
-                top: 0;
-                left: 0;
-                width: 270px;
-                height: 270px;
-                pointer-events: none;
-              "
-            ></svg>
-            <div
-              style="
-                width: 214px;
-                height: 214px;
-                border-radius: 50%;
-                overflow: hidden;
-                background: #111;
-                box-shadow: 0 0 0 3px #222;
-              "
-            >
-              <video
-                id="webcamPreview"
-                autoplay
-                playsinline
-                muted
-                style="
-                  width: 100%;
-                  height: 100%;
-                  object-fit: cover;
-                  transform: scaleX(-1);
-                "
-              ></video>
+        <div class="card-body">
+
+          <!-- Input Controls -->
+          <div class="row g-2 mb-3">
+            <div class="col-md-5">
+              <label class="face-input-label">Person's Name</label>
+              <input
+                type="text"
+                id="scanName"
+                class="form-control"
+                placeholder="Enter Name (e.g., Okkar)"
+              />
+            </div>
+
+            <div class="col-md-7 d-flex align-items-end gap-2 flex-wrap">
+              <button
+                type="button"
+                id="startScanBtn"
+                class="btn btn-primary flex-fill"
+                onclick="startAppleFaceScan()"
+              >
+                Start Face ID Scan
+              </button>
+
+              <button
+                type="button"
+                id="ipCamScanBtn"
+                class="btn btn-outline-primary flex-fill"
+                onclick="enrollFromIpCamera()"
+              >
+                From Live IP Cam
+              </button>
+
+              <button
+                type="button"
+                id="cancelScanBtn"
+                class="btn btn-outline-danger d-none"
+                onclick="cancelFaceIdScan()"
+              >
+                Stop
+              </button>
             </div>
           </div>
-        </div>
-        <canvas id="captureCanvas" style="display: none"></canvas>
 
-        <div id="scanInstruction" class="fw-bold text-center text-muted mt-2">
-          Enter your name and click "Start Face ID Scan", then slowly roll your
-          head in a circle.
+          <!-- Scanner View -->
+          <div class="face-scanner-stage">
+
+            <div class="face-scanner-orbit">
+              <svg
+                id="faceIdDial"
+                viewBox="0 0 270 270"
+              ></svg>
+
+              <div class="face-camera-circle">
+                <video
+                  id="webcamPreview"
+                  autoplay
+                  playsinline
+                  muted
+                ></video>
+              </div>
+            </div>
+
+            <div class="face-camera-label">
+              Facial Capture Interface
+            </div>
+
+          </div>
+
+          <canvas id="captureCanvas" style="display: none"></canvas>
+
+          <div class="face-instruction-box">
+            <div id="scanInstruction" class="fw-bold text-center text-muted">
+              Enter your name and click "Start Face ID Scan", then slowly roll your
+              head in a circle.
+            </div>
+          </div>
+
         </div>
       </div>
     </div>
-  </div>
 
-  <!-- Option B: Manual Photo Upload -->
-  <div class="col-lg-5">
-    <div class="card shadow-sm h-100">
-      <div class="card-header bg-white fw-bold">Or Upload Photos Manually</div>
-      <div class="card-body">
-        <form method="POST" enctype="multipart/form-data">
-          <div class="mb-3">
-            <label class="form-label small fw-semibold">Full Name</label>
-            <input
-              type="text"
-              name="name"
-              class="form-control"
-              placeholder="Full Name"
-              required
-            />
-          </div>
-          <div class="mb-3">
-            <label class="form-label small fw-semibold"
-              >Select 3–5 Photos</label
-            >
-            <input
-              type="file"
-              name="photos"
-              class="form-control"
-              accept=".jpg,.jpeg,.png"
-              multiple
-              required
-            />
-            <small class="text-muted"
-              >Tip: Upload screenshots from your overhead IP camera for maximum
-              CCTV accuracy.</small
-            >
-          </div>
-          <div class="d-grid">
-            <button type="submit" class="btn btn-outline-success">
-              Upload & Extract
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  </div>
-</div>
+    <!-- Option B: Manual Photo Upload -->
+    <div class="col-lg-5">
+      <div class="card face-manual-card h-100">
 
-<!-- Registered Profiles Grid -->
-<div class="card shadow-sm">
-  <div class="card-header bg-white fw-bold">
-    Registered Profiles ({{ users|length }})
-  </div>
-  <div class="card-body">
-    <div class="row g-3">
-      {% for user in users %}
-      <div class="col-md-3 col-sm-6">
-        <div class="card h-100 text-center">
-          <img
-            src="{{ url_for('serve_face', filename=user.face_image) }}"
-            class="card-img-top"
-            style="height: 200px; object-fit: cover"
-            alt="{{ user.name }}"
-          />
-          <div class="card-body">
-            <h6 class="fw-bold mb-1">{{ user.name }}</h6>
-            <span class="badge bg-info text-dark mb-2">
-              {{ user.embedding|length if user.embedding and user.embedding[0]
-              is iterable else 1 }} angle sample(s)
-            </span>
-            <small class="text-muted d-block mb-2"
-              >Added: {{ user.created_at }}</small
-            >
-            <form
-              method="POST"
-              action="{{ url_for('remove_visitor', user_id=user.id) }}"
-            >
-              <button type="submit" class="btn btn-sm btn-outline-danger">
-                Remove
+        <div class="card-header">
+          <div class="face-section-label">
+            <span class="face-number">02</span>
+            <span>Manual Photo Enrollment</span>
+          </div>
+        </div>
+
+        <div class="card-body">
+
+          <div class="face-manual-banner">
+            <strong>Alternative enrollment method</strong><br />
+            Register a profile using multiple facial photographs instead of a live
+            circular scan.
+          </div>
+
+          <form method="POST" enctype="multipart/form-data">
+
+            <div class="mb-3">
+              <label class="face-input-label">Full Name</label>
+              <input
+                type="text"
+                name="name"
+                class="form-control"
+                placeholder="Full Name"
+                required
+              />
+            </div>
+
+            <div class="mb-3">
+              <label class="face-input-label">Facial Image Samples</label>
+              <input
+                type="file"
+                name="photos"
+                class="form-control"
+                accept=".jpg,.jpeg,.png"
+                multiple
+                required
+              />
+
+              <small class="face-upload-hint">
+                Select 3–5 photos. Tip: Upload screenshots from your overhead IP
+                camera for maximum CCTV accuracy.
+              </small>
+            </div>
+
+            <div class="d-grid face-upload-button">
+              <button type="submit" class="btn btn-outline-success">
+                Upload & Extract
               </button>
-            </form>
-          </div>
+            </div>
+
+          </form>
+
         </div>
       </div>
-      {% else %}
-      <p class="text-muted mb-0">No family members registered yet.</p>
-      {% endfor %}
     </div>
+
   </div>
+
+  <!-- Registered Profiles -->
+  <div class="card face-profile-section">
+
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <div class="face-section-label">
+        <span class="face-number">03</span>
+        <span>Registered Profiles</span>
+      </div>
+
+      <span class="face-profile-count">
+        {{ users|length }} Profiles
+      </span>
+    </div>
+
+    <div class="card-body">
+      <div class="row g-3">
+
+        {% for user in users %}
+        <div class="col-md-4 col-lg-3 col-sm-6">
+
+          <div class="card face-profile-card h-100 text-center">
+
+            <img
+              src="{{ url_for('serve_face', filename=user.face_image) }}"
+              class="face-profile-image"
+              alt="{{ user.name }}"
+            />
+
+            <div class="card-body">
+
+              <h6 class="face-profile-name">
+                {{ user.name }}
+              </h6>
+
+              <span class="badge face-sample-badge">
+                {{ user.embedding|length if user.embedding and user.embedding[0]
+                is iterable else 1 }} angle sample(s)
+              </span>
+
+              <small class="face-profile-date">
+                Added: {{ user.created_at }}
+              </small>
+
+              <form
+                method="POST"
+                action="{{ url_for('remove_visitor', user_id=user.id) }}"
+              >
+                <button type="submit" class="btn btn-sm btn-outline-danger w-100">
+                  Remove Profile
+                </button>
+              </form>
+
+            </div>
+          </div>
+
+        </div>
+
+        {% else %}
+        <div class="col-12">
+          <div class="face-empty">
+            No family members registered yet.
+          </div>
+        </div>
+        {% endfor %}
+
+      </div>
+    </div>
+
+  </div>
+
 </div>
 
 <script>
@@ -507,4 +979,5 @@
     }
   }
 </script>
+
 {% endblock %}

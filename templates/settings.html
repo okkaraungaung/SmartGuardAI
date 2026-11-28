@@ -1,66 +1,554 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="card shadow-sm">
-    <div class="card-header bg-white fw-bold">SmartGuard AI Configuration & Telegram Bot</div>
-    <div class="card-body">
-        <form method="POST">
-            <h6 class="fw-bold text-primary mb-3">Telegram Notification Settings</h6>
-            <div class="row g-3 mb-4">
-                <div class="col-md-6">
-                    <label class="form-label">Telegram Bot Token (from @BotFather)</label>
-                    <input type="password" name="telegram_bot_token" class="form-control" value="{{ settings.telegram_bot_token }}" placeholder="123456789:ABCdef...">
-                </div>
-                <div class="col-md-6">
-                    <label class="form-label">Telegram Chat ID (from @userinfobot)</label>
-                    <input type="text" name="telegram_chat_id" class="form-control" value="{{ settings.telegram_chat_id }}" placeholder="987654321">
-                </div>
-            </div>
 
-            <h6 class="fw-bold text-primary mb-3">Detection & Behavioral Thresholds</h6>
-            <div class="row g-3 mb-4">
-                <div class="col-md-6">
-                    <label class="form-label">Loitering Time Threshold (seconds)</label>
-                    <input type="number" step="1" min="3" name="loitering_threshold" class="form-control" value="{{ settings.loitering_threshold }}">
-                </div>
-                <div class="col-md-6">
-                    <label class="form-label">YOLO Detection Confidence Threshold (0.10 - 0.90)</label>
-                    <input type="number" step="0.05" min="0.10" max="0.90" name="detection_confidence" class="form-control" value="{{ settings.detection_confidence }}">
-                </div>
-            </div>
+<style>
 
-            <h6 class="fw-bold text-primary mb-3">Active Security Rules</h6>
-            <div class="row g-2 mb-4">
-                <div class="col-md-3">
-                    <div class="form-check form-switch">
-                        <input class="form-check-input" type="checkbox" name="enable_unknown" id="swUnknown" {% if settings.enable_unknown == '1' %}checked{% endif %}>
-                        <label class="form-check-label" for="swUnknown">Unknown Person Alerts</label>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="form-check form-switch">
-                        <input class="form-check-input" type="checkbox" name="enable_loitering" id="swLoiter" {% if settings.enable_loitering == '1' %}checked{% endif %}>
-                        <label class="form-check-label" for="swLoiter">Loitering Detection</label>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="form-check form-switch">
-                        <input class="form-check-input" type="checkbox" name="enable_package" id="swPackage" {% if settings.enable_package == '1' %}checked{% endif %}>
-                        <label class="form-check-label" for="swPackage">Package / Bag Monitoring</label>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="form-check form-switch">
-                        <input class="form-check-input" type="checkbox" name="enable_vehicle" id="swVehicle" {% if settings.enable_vehicle == '1' %}checked{% endif %}>
-                        <label class="form-check-label" for="swVehicle">Vehicle Entry Alerts</label>
-                    </div>
-                </div>
-            </div>
+.settings-page {
+    color: #e4efff;
+    padding-bottom: 25px;
+}
 
-            <div class="d-flex gap-2">
-                <button type="submit" name="action" value="save" class="btn btn-primary">Save Settings</button>
-                <button type="submit" name="action" value="test_telegram" class="btn btn-outline-success">Save & Send Test Telegram Alert</button>
+.settings-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 22px;
+    gap: 12px;
+}
+
+.settings-heading h2 {
+    font-size: 28px;
+    font-weight: 800;
+    color: #eff7ff;
+    letter-spacing: -1px;
+    margin: 0;
+}
+
+.settings-heading p {
+    color: #839bb5;
+    font-size: 13px;
+    margin: 5px 0 0;
+}
+
+.settings-tag {
+    background: #102b40;
+    border: 1px solid #254c68;
+    color: #63d5f5;
+    padding: 8px 13px;
+    border-radius: 30px;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    white-space: nowrap;
+}
+
+.settings-container {
+    background: #0a1625;
+    border: 1px solid #1b3046;
+    border-radius: 22px;
+    overflow: hidden;
+    box-shadow: 0 18px 45px #00000025;
+}
+
+.settings-top-banner {
+    position: relative;
+    overflow: hidden;
+    padding: 25px;
+    background:
+        radial-gradient(circle at 85% 20%, #174466 0, transparent 35%),
+        linear-gradient(120deg, #071321, #0d2034 65%, #102b42);
+    border-bottom: 1px solid #1e3b55;
+}
+
+.settings-top-banner::after {
+    content: "";
+    position: absolute;
+    right: -40px;
+    top: -120px;
+    width: 280px;
+    height: 280px;
+    border: 1px solid #2d6485;
+    border-radius: 50%;
+    opacity: .15;
+    box-shadow: 0 0 0 30px #2d648510, 0 0 0 60px #2d648508;
+}
+
+.banner-content {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.banner-icon {
+    width: 56px;
+    height: 56px;
+    background: #143754;
+    border: 1px solid #2b5b7b;
+    border-radius: 16px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 25px;
+    flex-shrink: 0;
+}
+
+.banner-content h3 {
+    font-size: 20px;
+    font-weight: 800;
+    color: #f1f8ff;
+    margin: 0;
+    letter-spacing: -.5px;
+}
+
+.banner-content p {
+    font-size: 12px;
+    color: #8ba6c0;
+    margin: 6px 0 0;
+}
+
+/* Sections */
+.settings-body {
+    padding: 25px;
+}
+
+.settings-section {
+    margin-bottom: 27px;
+}
+
+.section-heading {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 17px;
+}
+
+.section-icon {
+    width: 37px;
+    height: 37px;
+    border-radius: 11px;
+    background: #102c42;
+    border: 1px solid #244c67;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+}
+
+.section-heading h5 {
+    color: #e4f1ff;
+    font-size: 14px;
+    font-weight: 800;
+    margin: 0;
+}
+
+.section-heading p {
+    color: #7189a3;
+    font-size: 11px;
+    margin: 4px 0 0;
+}
+
+/* Input cards */
+.setting-input-card {
+    background: #0d1c2d;
+    border: 1px solid #1c344c;
+    border-radius: 14px;
+    padding: 17px;
+    height: 100%;
+    transition: border-color .2s, transform .2s;
+}
+
+.setting-input-card:hover {
+    border-color: #2a4d6a;
+    transform: translateY(-1px);
+}
+
+.setting-input-card label {
+    color: #93a9c1;
+    font-size: 11px;
+    font-weight: 700;
+    margin-bottom: 9px;
+}
+
+.setting-input-card .form-control {
+    background: #081523 !important;
+    color: #dcecff !important;
+    border: 1px solid #253f58 !important;
+    border-radius: 9px;
+    min-height: 43px;
+    font-size: 13px;
+    box-shadow: none !important;
+}
+
+.setting-input-card .form-control:focus {
+    border-color: #27bde8 !important;
+    box-shadow: 0 0 0 3px #27bde820 !important;
+}
+
+.setting-input-card .form-control::placeholder {
+    color: #526981;
+}
+
+.setting-hint {
+    color: #5f7892;
+    font-size: 10px;
+    margin-top: 8px;
+}
+
+/* Divider */
+.settings-divider {
+    border: 0;
+    border-top: 1px solid #1b3045;
+    margin: 26px 0;
+}
+
+/* Security rules */
+.rules-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.rule-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    background: #0d1c2d;
+    border: 1px solid #1d354c;
+    border-radius: 13px;
+    padding: 15px 17px;
+    transition: .2s;
+}
+
+.rule-card:hover {
+    background: #102237;
+    border-color: #2a4b68;
+}
+
+.rule-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.rule-symbol {
+    width: 38px;
+    height: 38px;
+    border-radius: 11px;
+    background: #142c41;
+    border: 1px solid #26455f;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+}
+
+.rule-info h6 {
+    color: #dcecff;
+    font-size: 12px;
+    font-weight: 700;
+    margin: 0;
+}
+
+.rule-info p {
+    color: #7188a2;
+    font-size: 10px;
+    margin: 4px 0 0;
+}
+
+/* Switches */
+.rule-card .form-check {
+    margin: 0;
+    padding-left: 0;
+    flex-shrink: 0;
+}
+
+.rule-card .form-check-input {
+    float: none;
+    margin: 0;
+    width: 39px;
+    height: 21px;
+    background-color: #1b3046;
+    border-color: #35516c;
+    cursor: pointer;
+    box-shadow: none !important;
+}
+
+.rule-card .form-check-input:checked {
+    background-color: #12b9de;
+    border-color: #12b9de;
+}
+
+/* Action buttons */
+.settings-actions {
+    display: flex;
+    gap: 11px;
+    flex-wrap: wrap;
+    padding-top: 5px;
+}
+
+.btn-settings-save {
+    background: linear-gradient(135deg, #13bce8, #167dc9);
+    border: none;
+    color: #041522;
+    padding: 11px 20px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 800;
+    transition: .2s;
+}
+
+.btn-settings-save:hover {
+    background: linear-gradient(135deg, #5bdbf7, #29a1ee);
+    color: #041522;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 18px #13bce830;
+}
+
+.btn-settings-test {
+    background: #102b27;
+    border: 1px solid #28604d;
+    color: #67ddb2;
+    padding: 11px 20px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 800;
+    transition: .2s;
+}
+
+.btn-settings-test:hover {
+    background: #174134;
+    border-color: #3d8064;
+    color: #a0ffda;
+    transform: translateY(-1px);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .settings-heading h2 {
+        font-size: 23px;
+    }
+
+    .settings-body {
+        padding: 17px;
+    }
+
+    .settings-top-banner {
+        padding: 20px;
+    }
+
+    .banner-content h3 {
+        font-size: 17px;
+    }
+
+    .rules-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .settings-actions {
+        flex-direction: column;
+    }
+
+    .settings-actions button {
+        width: 100%;
+    }
+}
+</style>
+
+<div class="settings-page">
+
+    <!-- Page Header -->
+    <div class="settings-heading">
+        <div>
+            <h2>System Configuration</h2>
+            <p>Configure detection behavior, alert delivery, and security policies.</p>
+        </div>
+        <div class="settings-tag">SYSTEM CONTROL</div>
+    </div>
+
+    <div class="settings-container">
+
+        <!-- Banner -->
+        <div class="settings-top-banner">
+            <div class="banner-content">
+                <div class="banner-icon">⚙</div>
+                <div>
+                    <h3>SmartGuard AI Configuration</h3>
+                    <p>Central control for surveillance intelligence and Telegram notifications.</p>
+                </div>
             </div>
-        </form>
+        </div>
+
+        <div class="settings-body">
+            <form method="POST">
+
+                <!-- Telegram -->
+                <div class="settings-section">
+                    <div class="section-heading">
+                        <div class="section-icon">✉</div>
+                        <div>
+                            <h5>Telegram Notification Settings</h5>
+                            <p>Connect your bot to receive real-time security alerts.</p>
+                        </div>
+                    </div>
+
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="setting-input-card">
+                                <label class="form-label">Telegram Bot Token</label>
+                                <input type="password" name="telegram_bot_token"
+                                       class="form-control"
+                                       value="{{ settings.telegram_bot_token }}"
+                                       placeholder="123456789:ABCdef...">
+                                <div class="setting-hint">Get your bot token from @BotFather</div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="setting-input-card">
+                                <label class="form-label">Telegram Chat ID</label>
+                                <input type="text" name="telegram_chat_id"
+                                       class="form-control"
+                                       value="{{ settings.telegram_chat_id }}"
+                                       placeholder="987654321">
+                                <div class="setting-hint">Get your chat ID from @userinfobot</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <hr class="settings-divider">
+
+                <!-- Thresholds -->
+                <div class="settings-section">
+                    <div class="section-heading">
+                        <div class="section-icon">⌁</div>
+                        <div>
+                            <h5>Detection & Behavioral Thresholds</h5>
+                            <p>Fine-tune how the AI identifies and evaluates activity.</p>
+                        </div>
+                    </div>
+
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="setting-input-card">
+                                <label class="form-label">Loitering Time Threshold (seconds)</label>
+                                <input type="number" step="1" min="3" name="loitering_threshold"
+                                       class="form-control"
+                                       value="{{ settings.loitering_threshold }}">
+                                <div class="setting-hint">Minimum duration before loitering is flagged.</div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="setting-input-card">
+                                <label class="form-label">YOLO Detection Confidence Threshold (0.10 - 0.90)</label>
+                                <input type="number" step="0.05" min="0.10" max="0.90"
+                                       name="detection_confidence"
+                                       class="form-control"
+                                       value="{{ settings.detection_confidence }}">
+                                <div class="setting-hint">Controls the confidence level of AI detections.</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <hr class="settings-divider">
+
+                <!-- Security Rules -->
+                <div class="settings-section">
+                    <div class="section-heading">
+                        <div class="section-icon">⛨</div>
+                        <div>
+                            <h5>Active Security Rules</h5>
+                            <p>Enable or disable the detection modules individually.</p>
+                        </div>
+                    </div>
+
+                    <div class="rules-grid">
+
+                        <div class="rule-card">
+                            <div class="rule-info">
+                                <div class="rule-symbol">◉</div>
+                                <div>
+                                    <h6>Unknown Person Alerts</h6>
+                                    <p>Flag unidentified individuals</p>
+                                </div>
+                            </div>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox"
+                                       name="enable_unknown" id="swUnknown"
+                                       {% if settings.enable_unknown == '1' %}checked{% endif %}>
+                            </div>
+                        </div>
+
+                        <div class="rule-card">
+                            <div class="rule-info">
+                                <div class="rule-symbol">◷</div>
+                                <div>
+                                    <h6>Loitering Detection</h6>
+                                    <p>Monitor prolonged presence</p>
+                                </div>
+                            </div>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox"
+                                       name="enable_loitering" id="swLoiter"
+                                       {% if settings.enable_loitering == '1' %}checked{% endif %}>
+                            </div>
+                        </div>
+
+                        <div class="rule-card">
+                            <div class="rule-info">
+                                <div class="rule-symbol">▣</div>
+                                <div>
+                                    <h6>Package / Bag Monitoring</h6>
+                                    <p>Detect unattended objects</p>
+                                </div>
+                            </div>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox"
+                                       name="enable_package" id="swPackage"
+                                       {% if settings.enable_package == '1' %}checked{% endif %}>
+                            </div>
+                        </div>
+
+                        <div class="rule-card">
+                            <div class="rule-info">
+                                <div class="rule-symbol">⌖</div>
+                                <div>
+                                    <h6>Vehicle Entry Alerts</h6>
+                                    <p>Track vehicles near the entrance</p>
+                                </div>
+                            </div>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox"
+                                       name="enable_vehicle" id="swVehicle"
+                                       {% if settings.enable_vehicle == '1' %}checked{% endif %}>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <hr class="settings-divider">
+
+                <!-- Actions -->
+                <div class="settings-actions">
+                    <button type="submit" name="action" value="save" class="btn-settings-save">
+                        Save Settings
+                    </button>
+
+                    <button type="submit" name="action" value="test_telegram" class="btn-settings-test">
+                        Save & Send Test Telegram Alert
+                    </button>
+                </div>
+
+            </form>
+        </div>
     </div>
 </div>
+
 {% endblock %}

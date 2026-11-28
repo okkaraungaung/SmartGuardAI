@@ -1,140 +1,589 @@
-{% extends "base.html" %} {% block content %}
-<div class="card shadow-sm mb-4">
-  <div class="card-header bg-white fw-bold">
-    1. Upload Recorded CCTV Footage
+{% extends "base.html" %}
+{% block content %}
+
+<style>
+  /* ===== SmartGuard Surveillance UI ===== */
+  .sg-page {
+    --sg-bg: #f3f6fb;
+    --sg-card: #ffffff;
+    --sg-text: #17243a;
+    --sg-muted: #7b879b;
+    --sg-blue: #3578f6;
+    --sg-border: #e7ecf3;
+    color: var(--sg-text);
+    padding-bottom: 24px;
+  }
+
+  .sg-page .card {
+    border: 1px solid var(--sg-border);
+    border-radius: 18px;
+    overflow: hidden;
+    background: var(--sg-card);
+    box-shadow: 0 6px 24px rgba(27, 49, 83, 0.045) !important;
+  }
+
+  .sg-page .card-header {
+    border-bottom: 1px solid var(--sg-border);
+    padding: 18px 22px;
+    color: var(--sg-text);
+    background: #fff !important;
+    font-size: 14px;
+    font-weight: 700;
+  }
+
+  .sg-page .card-body {
+    padding: 22px;
+  }
+
+  .sg-heading {
+    margin-bottom: 24px;
+  }
+
+  .sg-eyebrow {
+    color: var(--sg-blue);
+    text-transform: uppercase;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 2px;
+    margin-bottom: 8px;
+  }
+
+  .sg-title {
+    font-size: 26px;
+    font-weight: 800;
+    letter-spacing: -0.7px;
+    margin: 0;
+    color: #17243a;
+  }
+
+  .sg-subtitle {
+    font-size: 13px;
+    color: var(--sg-muted);
+    margin-top: 7px;
+  }
+
+  .sg-section-number {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 9px;
+    background: #edf4ff;
+    color: #3578f6;
+    font-size: 12px;
+    font-weight: 800;
+    margin-right: 10px;
+  }
+
+  /* Upload section */
+  .sg-upload-card {
+    margin-bottom: 24px;
+  }
+
+  .sg-upload-zone {
+    background: #f8faff;
+    border: 1.5px dashed #cbdaf3;
+    border-radius: 15px;
+    padding: 24px;
+    transition: 0.2s ease;
+  }
+
+  .sg-upload-zone:hover {
+    border-color: #5a91fa;
+    background: #f2f7ff;
+  }
+
+  .sg-upload-label {
+    font-size: 12px;
+    font-weight: 700;
+    color: #45546b;
+    display: block;
+    margin-bottom: 9px;
+  }
+
+  .sg-page .form-control {
+    border-radius: 10px;
+    border-color: #dfe6ef;
+    padding: 11px 12px;
+    font-size: 13px;
+    background-color: white;
+  }
+
+  .sg-page .form-control:focus {
+    border-color: #79a7ff;
+    box-shadow: 0 0 0 3px rgba(53, 120, 246, 0.1);
+  }
+
+  .sg-page input[type="file"] {
+    font-size: 12px;
+    color: #6f7c91;
+  }
+
+  .sg-enhance-box {
+    display: flex;
+    align-items: center;
+    height: 100%;
+    min-height: 50px;
+    padding: 12px 15px;
+    background: white;
+    border: 1px solid #e4eaf2;
+    border-radius: 11px;
+  }
+
+  .sg-enhance-box .form-check {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    margin: 0;
+  }
+
+  .sg-enhance-box .form-check-input {
+    width: 17px;
+    height: 17px;
+    margin: 0;
+    cursor: pointer;
+  }
+
+  .sg-enhance-box .form-check-label {
+    color: #45546b;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .sg-page .btn-primary {
+    border: none;
+    border-radius: 11px;
+    padding: 13px 16px;
+    font-size: 13px;
+    font-weight: 700;
+    background: linear-gradient(135deg, #4386ff, #2863e9);
+    box-shadow: 0 5px 14px rgba(53, 120, 246, 0.2);
+    transition: all 0.2s ease;
+  }
+
+  .sg-page .btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 18px rgba(53, 120, 246, 0.3);
+    background: linear-gradient(135deg, #3478f5, #2159d9);
+  }
+
+  .sg-upload-footer {
+    margin-top: 16px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    color: #8a97a9;
+    font-size: 11px;
+  }
+
+  /* Video */
+  .sg-video-card .card-body {
+    background: #f9fbfe;
+  }
+
+  .sg-video-frame {
+    background: #0c1422;
+    padding: 7px;
+    border-radius: 13px;
+    overflow: hidden;
+  }
+
+  .sg-video-frame video {
+    display: block;
+    width: 100%;
+    max-height: 560px;
+    background: #090e16;
+    border-radius: 9px;
+  }
+
+  .sg-video-caption {
+    margin-top: 12px;
+    color: #7b879b;
+    font-size: 11px;
+  }
+
+  /* Visitors */
+  .sg-visitor-card {
+    height: 100%;
+  }
+
+  .sg-table-wrap {
+    border: 1px solid #e8edf4;
+    border-radius: 12px;
+    overflow-x: auto;
+  }
+
+  .sg-page .table {
+    margin-bottom: 0;
+    font-size: 12px;
+  }
+
+  .sg-page .table thead th {
+    background: #f5f8fc;
+    color: #76849a;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    font-weight: 800;
+    padding: 13px 12px;
+    border-bottom: 1px solid #e7ecf3;
+    white-space: nowrap;
+  }
+
+  .sg-page .table tbody td {
+    padding: 13px 12px;
+    border-color: #edf1f6;
+    color: #42516a;
+    vertical-align: middle;
+  }
+
+  .sg-track-id {
+    display: inline-block;
+    padding: 5px 8px;
+    background: #eff5ff;
+    color: #3475ee;
+    border-radius: 7px;
+    font-weight: 800;
+    font-size: 11px;
+  }
+
+  .sg-page .badge {
+    padding: 6px 9px;
+    border-radius: 7px;
+    font-size: 10px;
+    font-weight: 700;
+  }
+
+  .sg-page .bg-danger {
+    background-color: #fff0f0 !important;
+    color: #df5656 !important;
+  }
+
+  .sg-page .bg-success {
+    background-color: #e9f9f0 !important;
+    color: #25945c !important;
+  }
+
+  .sg-page .bg-secondary {
+    background-color: #eef1f5 !important;
+    color: #738197 !important;
+  }
+
+  /* Security Events */
+  .sg-event-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .sg-event-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 30px;
+    height: 26px;
+    padding: 0 8px;
+    border-radius: 8px;
+    background: #fff0e6;
+    color: #ed8a3b;
+    font-size: 12px;
+    font-weight: 800;
+  }
+
+  .sg-event-card {
+    border: 1px solid #edf0f5 !important;
+    border-radius: 14px !important;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+
+  .sg-event-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 25px rgba(28, 45, 75, 0.08) !important;
+  }
+
+  .sg-event-card img {
+    width: 100%;
+    height: 210px;
+    object-fit: cover;
+    background: #e9edf3;
+  }
+
+  .sg-event-card .card-body {
+    padding: 17px;
+  }
+
+  .sg-event-name {
+    color: #28364d;
+    font-size: 13px;
+    font-weight: 800;
+  }
+
+  .sg-event-description {
+    color: #8290a4;
+    font-size: 12px;
+    line-height: 1.6;
+    margin-top: 10px;
+  }
+
+  .sg-empty {
+    padding: 28px 15px !important;
+    text-align: center;
+    color: #98a3b4 !important;
+  }
+
+  .sg-empty-icon {
+    font-size: 25px;
+    margin-bottom: 8px;
+  }
+
+  /* Responsive */
+  @media (max-width: 767px) {
+    .sg-title {
+      font-size: 22px;
+    }
+
+    .sg-page .card-body {
+      padding: 16px;
+    }
+
+    .sg-page .card-header {
+      padding: 15px 16px;
+    }
+
+    .sg-upload-zone {
+      padding: 16px;
+    }
+
+    .sg-event-card img {
+      height: 180px;
+    }
+  }
+</style>
+
+<div class="sg-page">
+
+  <!-- Page Header -->
+  <div class="sg-heading">
+    <div class="sg-eyebrow">Intelligent Video Surveillance</div>
+    <h2 class="sg-title">Video Analysis Center</h2>
+    <div class="sg-subtitle">
+      Upload footage, monitor visitor activity, and review detected security events.
+    </div>
   </div>
-  <div class="card-body">
-    <form
-      method="POST"
-      enctype="multipart/form-data"
-      class="row g-3 align-items-center"
-    >
-      <div class="col-md-6">
-        <input
-          class="form-control"
-          type="file"
-          name="video"
-          accept=".mp4,.avi,.mov"
-          required
-        />
-      </div>
-      <div class="col-md-3">
-        <div class="form-check">
-          <input
-            class="form-check-input"
-            type="checkbox"
-            name="force_enhance"
-            id="forceEnhance"
-            {%
-            if
-            force_enhance
-            %}checked{%
-            endif
-            %}
-          />
-          <label class="form-check-label" for="forceEnhance"
-            >Force Night Enhancement</label
-          >
+
+  <!-- 1. Upload CCTV -->
+  <div class="card sg-upload-card">
+    <div class="card-header">
+      <span class="sg-section-number">01</span>
+      Upload Recorded CCTV Footage
+    </div>
+
+    <div class="card-body">
+      <div class="sg-upload-zone">
+        <form
+          method="POST"
+          enctype="multipart/form-data"
+          class="row g-3 align-items-center"
+        >
+          <div class="col-lg-6">
+            <label class="sg-upload-label">Video File</label>
+            <input
+              class="form-control"
+              type="file"
+              name="video"
+              accept=".mp4,.avi,.mov"
+              required
+            />
+          </div>
+
+          <div class="col-lg-3">
+            <div class="sg-enhance-box">
+              <div class="form-check">
+                <input
+                  class="form-check-input"
+                  type="checkbox"
+                  name="force_enhance"
+                  id="forceEnhance"
+                  {% if force_enhance %}checked{% endif %}
+                />
+                <label class="form-check-label" for="forceEnhance">
+                  Force Night Enhancement
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-lg-3 d-grid">
+            <button type="submit" class="btn btn-primary">
+              Analyze & Monitor
+            </button>
+          </div>
+        </form>
+
+        <div class="sg-upload-footer">
+          Supported formats: MP4, AVI, MOV
         </div>
       </div>
-      <div class="col-md-3 d-grid">
-        <button type="submit" class="btn btn-primary">Analyze & Monitor</button>
-      </div>
-    </form>
-  </div>
-</div>
-
-{% if summary %}
-<div class="row mb-4">
-  <div class="col-md-7">
-    <div class="card shadow-sm h-100">
-      <div class="card-header bg-white fw-bold">2. Processed CCTV Output</div>
-      <div class="card-body text-center">
-        <video class="w-100 rounded" controls>
-          <source
-            src="{{ url_for('serve_processed_video', filename=summary.processed_video) }}"
-            type="video/mp4"
-          />
-        </video>
-      </div>
     </div>
   </div>
-  <div class="col-md-5">
-    <div class="card shadow-sm h-100">
-      <div class="card-header bg-white fw-bold">
-        3. Tracked Visitors & Dwell Time
-      </div>
-      <div class="card-body table-responsive">
-        <table class="table table-sm table-bordered align-middle">
-          <thead class="table-light">
-            <tr>
-              <th>ID</th>
-              <th>Identity</th>
-              <th>Window</th>
-              <th>Dwell</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for track in summary.visitor_tracks %}
-            <tr>
-              <td><strong>#{{ track.track_id }}</strong></td>
-              <td>
-                {% if track.name == 'Unknown' %}
-                <span class="badge bg-danger">Unknown</span>
-                {% else %}
-                <span class="badge bg-success">{{ track.name }}</span>
-                {% endif %}
-              </td>
-              <td>{{ track.first_seen }}s &ndash; {{ track.last_seen }}s</td>
-              <td><strong>{{ track.dwell_time }}s</strong></td>
-            </tr>
-            {% else %}
-            <tr>
-              <td colspan="4" class="text-center text-muted">
-                No visitors detected.
-              </td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-</div>
 
-<div class="card shadow-sm">
-  <div class="card-header bg-white fw-bold">
-    4. Triggered Security Events ({{ summary.security_events|length }})
-  </div>
-  <div class="card-body">
-    <div class="row g-3">
-      {% for ev in summary.security_events %}
-      <div class="col-md-4">
-        <div class="card h-100 border-warning">
-          <img
-            src="{{ url_for('serve_snapshot', filename=ev.snapshot_filename) }}"
-            class="card-img-top"
-            alt="Snapshot"
-          />
-          <div class="card-body">
-            <div class="d-flex justify-content-between mb-1">
-              <span class="fw-bold">{{ ev.event_type }}</span>
-              <span
-                class="badge {% if ev.telegram_sent %}bg-success{% else %}bg-secondary{% endif %}"
-              >
-                Telegram: {{ "Sent" if ev.telegram_sent else "Off" }}
-              </span>
-            </div>
-            <p class="small text-muted mb-0">{{ ev.description }}</p>
+  {% if summary %}
+
+  <!-- 2. Processed Video & 3. Visitors -->
+  <div class="row g-4 mb-4">
+
+    <!-- Processed video -->
+    <div class="col-lg-7">
+      <div class="card sg-video-card h-100">
+        <div class="card-header">
+          <span class="sg-section-number">02</span>
+          Processed CCTV Output
+        </div>
+
+        <div class="card-body">
+          <div class="sg-video-frame">
+            <video controls>
+              <source
+                src="{{ url_for('serve_processed_video', filename=summary.processed_video) }}"
+                type="video/mp4"
+              />
+            </video>
+          </div>
+
+          <div class="sg-video-caption">
+            AI-processed footage · Detection and tracking playback
           </div>
         </div>
       </div>
-      {% else %}
-      <p class="text-muted mb-0">
-        No security alerts triggered during this clip.
-      </p>
-      {% endfor %}
+    </div>
+
+    <!-- Visitor tracking -->
+    <div class="col-lg-5">
+      <div class="card sg-visitor-card h-100">
+        <div class="card-header">
+          <span class="sg-section-number">03</span>
+          Tracked Visitors & Dwell Time
+        </div>
+
+        <div class="card-body">
+          <div class="sg-table-wrap">
+            <table class="table table-sm align-middle">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Identity</th>
+                  <th>Window</th>
+                  <th>Dwell</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {% for track in summary.visitor_tracks %}
+                <tr>
+                  <td>
+                    <span class="sg-track-id">#{{ track.track_id }}</span>
+                  </td>
+
+                  <td>
+                    {% if track.name == 'Unknown' %}
+                    <span class="badge bg-danger">Unknown</span>
+                    {% else %}
+                    <span class="badge bg-success">{{ track.name }}</span>
+                    {% endif %}
+                  </td>
+
+                  <td>
+                    {{ track.first_seen }}s &ndash; {{ track.last_seen }}s
+                  </td>
+
+                  <td>
+                    <strong>{{ track.dwell_time }}s</strong>
+                  </td>
+                </tr>
+
+                {% else %}
+                <tr>
+                  <td colspan="4" class="sg-empty">
+                    No visitors detected.
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- 4. Security Events -->
+  <div class="card">
+    <div class="card-header">
+      <div class="sg-event-heading">
+        <div>
+          <span class="sg-section-number">04</span>
+          Triggered Security Events
+        </div>
+
+        <span class="sg-event-count">
+          {{ summary.security_events|length }} Events
+        </span>
+      </div>
+    </div>
+
+    <div class="card-body">
+      <div class="row g-4">
+
+        {% for ev in summary.security_events %}
+        <div class="col-md-6 col-xl-4">
+          <div class="card sg-event-card h-100">
+
+            <img
+              src="{{ url_for('serve_snapshot', filename=ev.snapshot_filename) }}"
+              alt="Snapshot"
+            />
+
+            <div class="card-body">
+              <div class="d-flex justify-content-between align-items-center gap-2 mb-2">
+                <span class="sg-event-name">
+                  {{ ev.event_type }}
+                </span>
+
+                <span
+                  class="badge {% if ev.telegram_sent %}bg-success{% else %}bg-secondary{% endif %}"
+                >
+                  Telegram: {{ "Sent" if ev.telegram_sent else "Off" }}
+                </span>
+              </div>
+
+              <p class="sg-event-description mb-0">
+                {{ ev.description }}
+              </p>
+            </div>
+
+          </div>
+        </div>
+
+        {% else %}
+        <div class="col-12">
+          <div class="sg-empty">
+            <div class="sg-empty-icon">—</div>
+            No security alerts triggered during this clip.
+          </div>
+        </div>
+        {% endfor %}
+
+      </div>
     </div>
   </div>
+
+  {% endif %}
+
 </div>
-{% endif %} {% endblock %}
+
+{% endblock %}
